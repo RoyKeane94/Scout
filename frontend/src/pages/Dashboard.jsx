@@ -59,6 +59,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState('sightings');
   const [drawerPhotoUrl, setDrawerPhotoUrl] = useState(null);
+  const [drawerPhotoError, setDrawerPhotoError] = useState(null);
   const [filter, setFilter] = useState('all');
   const [selectedId, setSelectedId] = useState(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -77,7 +78,7 @@ export default function Dashboard() {
   }, []);
 
   const drawerPhotoUrlRef = useRef(null);
-  // Load photo from API when drawer opens (works in production where data URI may be blocked or omitted)
+  // Load photo from API when drawer opens (Postgres-backed; S3 uses photo_url from API)
   useEffect(() => {
     if (!selectedId || !drawerOpen) {
       if (drawerPhotoUrlRef.current) {
@@ -85,20 +86,36 @@ export default function Dashboard() {
         drawerPhotoUrlRef.current = null;
       }
       setDrawerPhotoUrl(null);
+      setDrawerPhotoError(null);
       return;
     }
     setDrawerPhotoUrl(null);
+    setDrawerPhotoError(null);
     if (drawerPhotoUrlRef.current) {
       URL.revokeObjectURL(drawerPhotoUrlRef.current);
       drawerPhotoUrlRef.current = null;
     }
     api.get(`/sightings/${selectedId}/photo/`, { responseType: 'blob' })
       .then((res) => {
-        const url = URL.createObjectURL(res.data);
+        const blob = res.data;
+        if (!blob || blob.size === 0) {
+          setDrawerPhotoError('empty');
+          return;
+        }
+        if (blob.type && blob.type.startsWith('application/json')) {
+          setDrawerPhotoError('not_image');
+          return;
+        }
+        const url = URL.createObjectURL(blob);
         drawerPhotoUrlRef.current = url;
         setDrawerPhotoUrl(url);
       })
-      .catch(() => setDrawerPhotoUrl(null));
+      .catch((err) => {
+        const status = err.response?.status;
+        setDrawerPhotoError(status === 404 ? 'no_photo' : 'failed');
+        console.warn('[Scout] Photo load failed:', status, err.response?.statusText || err.message);
+        setDrawerPhotoUrl(null);
+      });
     return () => {
       if (drawerPhotoUrlRef.current) {
         URL.revokeObjectURL(drawerPhotoUrlRef.current);
@@ -562,12 +579,14 @@ export default function Dashboard() {
           {selectedSighting && (
             <>
               <div className="dashboard-drawer-photo">
-                {drawerPhotoUrl ? (
+                {selectedSighting.photo_url ? (
+                  <img src={selectedSighting.photo_url} alt="" />
+                ) : drawerPhotoUrl ? (
                   <img src={drawerPhotoUrl} alt="" />
-                ) : selectedSighting.photo_b64 ? (
-                  <img src={`data:image/jpeg;base64,${String(selectedSighting.photo_b64).replace(/\s/g, '')}`} alt="" />
                 ) : (
-                  <span className="dashboard-drawer-photo-placeholder">Photo</span>
+                  <span className="dashboard-drawer-photo-placeholder" title={drawerPhotoError === 'no_photo' ? 'No photo for this sighting' : drawerPhotoError ? 'Photo failed to load' : ''}>
+                    {drawerPhotoError === 'no_photo' ? 'No photo' : drawerPhotoError ? 'Photo unavailable' : 'Photo'}
+                  </span>
                 )}
               </div>
               <div className="dashboard-drawer-badge-row">
