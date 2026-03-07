@@ -95,9 +95,9 @@ export default function Dashboard() {
       URL.revokeObjectURL(drawerPhotoUrlRef.current);
       drawerPhotoUrlRef.current = null;
     }
-    const photoUrl = `/api/sightings/${selectedId}/photo/`;
-    console.warn('[Scout] Photo request:', photoUrl);
-    api.get(photoUrl, { responseType: 'blob' })
+    const photoPath = `sightings/${selectedId}/photo/`;
+    console.warn('[Scout] Photo request:', photoPath);
+    api.get(photoPath, { responseType: 'blob' })
       .then((res) => {
         const blob = res.data;
         if (!blob || blob.size === 0) {
