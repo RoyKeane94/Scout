@@ -95,17 +95,22 @@ export default function Dashboard() {
       URL.revokeObjectURL(drawerPhotoUrlRef.current);
       drawerPhotoUrlRef.current = null;
     }
-    api.get(`/sightings/${selectedId}/photo/`, { responseType: 'blob' })
+    const photoUrl = `/api/sightings/${selectedId}/photo/`;
+    console.warn('[Scout] Photo request:', photoUrl);
+    api.get(photoUrl, { responseType: 'blob' })
       .then((res) => {
         const blob = res.data;
         if (!blob || blob.size === 0) {
+          console.warn('[Scout] Photo response empty', blob?.size);
           setDrawerPhotoError('empty');
           return;
         }
         if (blob.type && blob.type.startsWith('application/json')) {
+          console.warn('[Scout] Photo response was JSON (server error?)', blob.type);
           setDrawerPhotoError('not_image');
           return;
         }
+        console.warn('[Scout] Photo loaded', blob.size, blob.type);
         const url = URL.createObjectURL(blob);
         drawerPhotoUrlRef.current = url;
         setDrawerPhotoUrl(url);
