@@ -40,7 +40,7 @@ export default function RegisterOrg() {
         <div className="auth-container">
           <div className="logo-block">
             <span className="logo">SCOUT<span className="logo-dot">.</span></span>
-            <p className="tagline">Field intelligence for drinks brands</p>
+            <p className="tagline">Log it. Map it. Act on it.</p>
           </div>
           <div className="auth-card">
             <div className="card-label">Your team code</div>
@@ -63,7 +63,7 @@ export default function RegisterOrg() {
       <div className="auth-container">
         <div className="logo-block">
           <span className="logo">SCOUT<span className="logo-dot">.</span></span>
-          <p className="tagline">Field intelligence for drinks brands</p>
+          <p className="tagline">Log it. Map it. Act on it.</p>
         </div>
         <div className="auth-card">
           <form onSubmit={handleSubmit}>

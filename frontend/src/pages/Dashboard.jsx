@@ -399,7 +399,7 @@ export default function Dashboard() {
                   </div>
                   <div className="dashboard-comp-gap-table">
                     <div className="dashboard-comp-gap-header">
-                      <div className="dashboard-comp-gap-title">Venues your competitors are in — but you're not</div>
+                      <div className="dashboard-comp-gap-title">Venues your competitors are in but you're not</div>
                       <div className="dashboard-comp-gap-sub">Sorted by most recent</div>
                     </div>
                     {gapVenues.map((g, i) => (

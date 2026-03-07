@@ -8,9 +8,10 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR.parent / '.env')
 FRONTEND_DIST = BASE_DIR.parent / 'frontend' / 'dist'
 
-SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY')
-DEBUG = os.environ.get('DJANGO_DEBUG').lower() in ('1', 'true', 'yes')
-ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS').split(',')
+SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY') or 'dev-secret-key-change-in-production'
+_debug = (os.environ.get('DJANGO_DEBUG') or 'true').lower()
+DEBUG = _debug in ('1', 'true', 'yes')
+ALLOWED_HOSTS = (os.environ.get('ALLOWED_HOSTS') or '*').strip().split(',')
 
 INSTALLED_APPS = [
     'django.contrib.auth',
