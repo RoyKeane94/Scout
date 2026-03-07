@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { createPortal } from 'react-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import api from '../api/axios';
 import ScoutSelect from '../components/ScoutSelect';
 
@@ -17,28 +17,27 @@ const VENUE_TYPES = ['cafe', 'pub', 'bar', 'deli', 'gym', 'restaurant', 'shop', 
 const VENUE_TYPE_LABELS = { cafe: 'Cafe', pub: 'Pub', bar: 'Bar', deli: 'Deli', gym: 'Gym', restaurant: 'Restaurant', shop: 'Shop', other: 'Other' };
 
 export default function Log() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const editSighting = location.state?.editSighting;
   const [step, setStep] = useState('form');
   const [fields, setFields] = useState([]);
   const [brands, setBrands] = useState([]);
-  const [venue, setVenue] = useState(null);
+  const [venues, setVenues] = useState([]);
+  const [venueId, setVenueId] = useState('');
   const [brandId, setBrandId] = useState('');
   const [photoB64, setPhotoB64] = useState(null);
-  const [location, setLocation] = useState({ lat: null, lng: null });
+  const [coords, setCoords] = useState({ lat: null, lng: null });
   const [data, setData] = useState({});
   const [error, setError] = useState('');
   const [submitted, setSubmitted] = useState(null);
 
-  // Venue typeahead
-  const [venueQuery, setVenueQuery] = useState('');
-  const [venueResults, setVenueResults] = useState([]);
-  const [venueOpen, setVenueOpen] = useState(false);
+  // Venue add form
   const [venueAdding, setVenueAdding] = useState(false);
   const [newVenueName, setNewVenueName] = useState('');
   const [newVenueType, setNewVenueType] = useState('cafe');
-  const venueRef = useRef(null);
-  const venueInputRef = useRef(null);
-  const [venueDropdownPos, setVenueDropdownPos] = useState({ top: 0, left: 0, width: 0 });
-  const debounceRef = useRef(null);
+  const photoCameraInputRef = useRef(null);
+  const photoUploadInputRef = useRef(null);
 
   // Geo
   const [geoLat, setGeoLat] = useState(null);
@@ -55,54 +54,34 @@ export default function Log() {
       setFields(res.data.filter((f) => f.is_active).sort((a, b) => a.display_order - b.display_order));
     });
     api.get('/config/brands/').then((res) => setBrands(res.data));
+    api.get('/venues/').then((res) => setVenues(res.data || [])).catch(() => setVenues([]));
   }, []);
 
   useEffect(() => {
-    if (venue) setVenueQuery(venue.name || '');
-  }, [venue]);
-
-  useEffect(() => {
-    if (venueQuery.length < 1) {
-      setVenueResults([]);
-      return;
+    if (!editSighting) return;
+    setVenueId(editSighting.venue?.id ? String(editSighting.venue.id) : '');
+    setBrandId(editSighting.brand?.id ? String(editSighting.brand.id) : '');
+    setData(editSighting.data || {});
+    setCoords({
+      lat: editSighting.lat != null ? Number(editSighting.lat) : null,
+      lng: editSighting.lng != null ? Number(editSighting.lng) : null,
+    });
+    if (editSighting.id && editSighting.photo_url && editSighting.photo_url.includes('/api/sightings/') && editSighting.photo_url.includes('/photo/')) {
+      api.get(`sightings/${editSighting.id}/photo/`, { responseType: 'blob' })
+        .then((res) => {
+          const blob = res.data;
+          if (blob && blob.size > 0 && !(blob.type && blob.type.startsWith('application/json'))) {
+            const reader = new FileReader();
+            reader.onload = () => setPhotoB64(reader.result);
+            reader.readAsDataURL(blob);
+          }
+        })
+        .catch(() => {});
     }
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => {
-      api.get(`/venues/?search=${encodeURIComponent(venueQuery)}`).then((res) => {
-        setVenueResults(res.data);
-      });
-    }, 200);
-    return () => clearTimeout(debounceRef.current);
-  }, [venueQuery]);
+  }, [editSighting?.id]);
 
   useEffect(() => {
-    const h = (e) => {
-      if (venueRef.current && !venueRef.current.contains(e.target) && !e.target.closest('.log-typeahead-results-portal')) setVenueOpen(false);
-    };
-    document.addEventListener('click', h);
-    return () => document.removeEventListener('click', h);
-  }, []);
-
-  useEffect(() => {
-    if (venueOpen && venueQuery.length >= 1 && venueInputRef.current) {
-      const updatePos = () => {
-        if (venueInputRef.current) {
-          const rect = venueInputRef.current.getBoundingClientRect();
-          setVenueDropdownPos({ top: rect.bottom + 4, left: rect.left, width: rect.width });
-        }
-      };
-      updatePos();
-      window.addEventListener('scroll', updatePos, true);
-      window.addEventListener('resize', updatePos);
-      return () => {
-        window.removeEventListener('scroll', updatePos, true);
-        window.removeEventListener('resize', updatePos);
-      };
-    }
-  }, [venueOpen, venueQuery]);
-
-  useEffect(() => {
-    if (geoLat != null && geoLng != null) setLocation({ lat: geoLat, lng: geoLng });
+    if (geoLat != null && geoLng != null) setCoords({ lat: geoLat, lng: geoLng });
   }, [geoLat, geoLng]);
 
   const getGeo = () => {
@@ -145,19 +124,18 @@ export default function Log() {
       name: newVenueName.trim(),
       venue_type: String(newVenueType),
     };
-    if (location.lat != null && location.lng != null) {
-      payload.lat = Number(location.lat);
-      payload.lng = Number(location.lng);
+    if (coords.lat != null && coords.lng != null) {
+      payload.lat = Number(coords.lat);
+      payload.lng = Number(coords.lng);
     }
     api
       .post('/venues/', payload)
       .then((res) => {
-        setVenue(res.data);
-        setVenueQuery(res.data.name);
+        setVenues((prev) => [...prev, res.data]);
+        setVenueId(String(res.data.id));
         setNewVenueName('');
         setNewVenueType('cafe');
         setVenueAdding(false);
-        setVenueOpen(false);
       })
       .catch((err) => {
         const d = err.response?.data;
@@ -197,6 +175,7 @@ export default function Log() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    const venue = venues.find((v) => v.id === venueId || v.id === parseInt(venueId, 10));
     if (!venue?.id) {
       setError('Please select or add a venue');
       return;
@@ -225,12 +204,14 @@ export default function Log() {
       photo_b64: photoB64 || null,
       data,
     };
-    if (location.lat != null && location.lng != null) {
-      payload.lat = Number(location.lat);
-      payload.lng = Number(location.lng);
+    if (coords.lat != null && coords.lng != null) {
+      payload.lat = Number(coords.lat);
+      payload.lng = Number(coords.lng);
     }
-    api
-      .post('/sightings/', payload)
+    const req = editSighting
+      ? api.patch(`sightings/${editSighting.id}/`, payload)
+      : api.post('/sightings/', payload);
+    req
       .then((res) => {
         setSubmitted(res.data);
         setStep('confirm');
@@ -243,9 +224,9 @@ export default function Log() {
   };
 
   const resetForm = () => {
+    navigate('/log', { replace: true, state: {} });
     setStep('form');
-    setVenue(null);
-    setVenueQuery('');
+    setVenueId('');
     setBrandId('');
     setBrandAdding(false);
     setNewBrandName('');
@@ -268,8 +249,8 @@ export default function Log() {
         <div className="log-inner">
           <div className="log-success">
             <div className="log-success-ring">✓</div>
-            <h2>Sighting logged</h2>
-            <p>Added to the map. Your team can see it now.</p>
+            <h2>{editSighting ? 'Sighting updated' : 'Sighting logged'}</h2>
+            <p>{editSighting ? 'Changes saved. Your team can see the update.' : 'Added to the map. Your team can see it now.'}</p>
             <div className="log-success-card">
               <div className="log-s-row">
                 <span>Venue</span>
@@ -293,7 +274,7 @@ export default function Log() {
     <div className="page log-page">
       <div className="log-inner">
         <div className="page-header log-page-header">
-          <h1 className="page-title">Log a sighting</h1>
+          <h1 className="page-title">{editSighting ? 'Edit sighting' : 'Log a sighting'}</h1>
         </div>
 
         <form onSubmit={handleSubmit} id="log-form-body">
@@ -301,16 +282,47 @@ export default function Log() {
 
           <div className="log-card">
             <div className="card-label">Photo <span className="optional-hint">(optional)</span></div>
-            <label htmlFor="photo-file">
-              <div className={`photo-zone ${photoB64 ? 'has-photo' : ''}`}>
-                {photoB64 && <img src={photoB64} alt="" />}
-                <div className="photo-inner" style={{ display: photoB64 ? 'none' : 'block' }}>
-                  <span className="photo-icon">📷</span>
-                  <p className="photo-hint">Tap to <strong>take a photo</strong> or upload</p>
-                </div>
+            {photoB64 ? (
+              <div className="log-photo-preview">
+                <img src={photoB64} alt="" />
+                <button type="button" className="log-photo-remove" onClick={() => setPhotoB64(null)} aria-label="Remove photo">
+                  &#215;
+                </button>
               </div>
-            </label>
-            <input type="file" id="photo-file" accept="image/*" capture="environment" onChange={handlePhoto} />
+            ) : (
+              <div className="log-photo-buttons">
+                <input
+                  ref={photoCameraInputRef}
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  onChange={handlePhoto}
+                  style={{ display: 'none' }}
+                />
+                <input
+                  ref={photoUploadInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handlePhoto}
+                  style={{ display: 'none' }}
+                />
+                <button
+                  type="button"
+                  className="log-photo-btn log-photo-btn-camera"
+                  onClick={() => photoCameraInputRef.current?.click()}
+                >
+                  Take photo
+                </button>
+                <button
+                  type="button"
+                  className="log-photo-btn log-photo-btn-upload"
+                  onClick={() => photoUploadInputRef.current?.click()}
+                >
+                  <span className="log-photo-btn-icon">↑</span>
+                  Upload
+                </button>
+              </div>
+            )}
           </div>
 
           <div className="log-card">
@@ -326,96 +338,74 @@ export default function Log() {
             </div>
           </div>
 
-          <div className={`log-card ${(venueOpen && venueQuery.length >= 1) || venueAdding ? 'log-typeahead-open' : ''}`} ref={venueRef}>
+          <div className="log-card">
             <div className="card-label">Venue</div>
-            <div className="log-typeahead">
-              <div className="log-field" ref={venueInputRef}>
-                <input
-                  type="text"
-                  value={venueQuery}
-                  onChange={(e) => setVenueQuery(e.target.value)}
-                  onFocus={() => setVenueOpen(true)}
-                  placeholder="Search or add venue…"
-                  autoComplete="off"
-                />
+            {venueAdding ? (
+              <div className="log-venue-add">
+                <div className="log-new-venue-row">
+                  <div className="log-field">
+                    <label>Venue name</label>
+                    <input
+                      type="text"
+                      value={newVenueName}
+                      onChange={(e) => setNewVenueName(e.target.value)}
+                      placeholder="e.g. Allpress"
+                      autoFocus
+                    />
+                  </div>
+                  <div className="log-field">
+                    <label>Type</label>
+                    <ScoutSelect
+                      value={newVenueType}
+                      onChange={(v) => setNewVenueType(v)}
+                      placeholder="Select type…"
+                      options={VENUE_TYPES.map((t) => ({ value: t, label: VENUE_TYPE_LABELS[t] || t }))}
+                    />
+                  </div>
+                </div>
+                <div className="log-venue-add-actions">
+                  <button type="button" className="log-confirm-btn" onClick={addVenue}>
+                    Add
+                  </button>
+                  <button type="button" className="log-brand-cancel-btn" onClick={() => { setVenueAdding(false); setNewVenueName(''); }}>
+                    Cancel
+                  </button>
+                </div>
               </div>
-              {venueOpen && venueQuery.length >= 1 && createPortal(
-                <div
-                  className="log-typeahead-results log-typeahead-results-portal"
-                  style={{
-                    position: 'fixed',
-                    top: venueDropdownPos.top,
-                    left: venueDropdownPos.left,
-                    width: venueDropdownPos.width,
-                    zIndex: 2147483647,
-                  }}
-                  onMouseDown={(e) => e.stopPropagation()}
-                >
-                  {venueResults.map((v) => (
-                    <button
-                      key={v.id}
-                      type="button"
-                      className="log-typeahead-item"
-                      onClick={() => {
-                        setVenue(v);
-                        setVenueQuery(v.name);
-                        setVenueOpen(false);
-                      }}
-                    >
-                      <span>{v.name}</span>
-                      <span className="log-typeahead-item-type">{v.venue_type}</span>
+            ) : (
+              <ScoutSelect
+                value={venueId}
+                onChange={(v) => { if (v === '__add__') setVenueAdding(true); else setVenueId(v); }}
+                placeholder="Please select…"
+                getLabel={(v) => {
+                  if (!v || v === '__add__') return '';
+                  const ven = venues.find((x) => x.id === v || x.id === parseInt(v, 10));
+                  return ven ? `${ven.name}${ven.venue_type ? ` · ${VENUE_TYPE_LABELS[ven.venue_type] || ven.venue_type}` : ''}` : '';
+                }}
+                renderOptions={({ onSelect }) => (
+                  <>
+                    <button type="button" role="option" className="scout-select-option" onClick={() => onSelect('')}>
+                      Please select…
                     </button>
-                  ))}
-                  {venueResults.length === 0 ? (
-                    <button
-                      type="button"
-                      className="log-typeahead-add"
-                      onClick={() => { setNewVenueName(venueQuery); setVenueAdding(true); }}
-                    >
-                      <span className="log-typeahead-add-icon">+</span>
-                      {`Add "${venueQuery}" as new venue`}
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      className="log-typeahead-add"
-                      onClick={() => setVenueAdding(!venueAdding)}
-                    >
-                      <span className="log-typeahead-add-icon">+</span>
-                      Add new venue
-                    </button>
-                  )}
-                  {venueAdding && (
-                    <div className="log-new-venue-form">
-                      <div className="log-new-venue-row">
-                        <div className="log-field">
-                          <label>Venue name</label>
-                          <input
-                            type="text"
-                            value={newVenueName}
-                            onChange={(e) => setNewVenueName(e.target.value)}
-                            placeholder="e.g. Allpress"
-                          />
-                        </div>
-                        <div className="log-field">
-                          <label>Type</label>
-                          <ScoutSelect
-                            value={newVenueType}
-                            onChange={(v) => setNewVenueType(v)}
-                            placeholder="Select type…"
-                            options={VENUE_TYPES.map((t) => ({ value: t, label: VENUE_TYPE_LABELS[t] || t }))}
-                          />
-                        </div>
-                      </div>
-                      <button type="button" className="log-confirm-btn" onClick={addVenue}>
-                        Add venue →
+                    {venues.map((v) => (
+                      <button
+                        key={v.id}
+                        type="button"
+                        role="option"
+                        className={`scout-select-option scout-select-option-venue ${venueId === String(v.id) ? 'selected' : ''}`}
+                        onClick={() => onSelect(String(v.id))}
+                      >
+                        <span>{v.name}</span>
+                        {v.venue_type && <span className="log-venue-type-badge">{VENUE_TYPE_LABELS[v.venue_type] || v.venue_type}</span>}
                       </button>
-                    </div>
-                  )}
-                </div>,
-                document.body
-              )}
-            </div>
+                    ))}
+                    <button type="button" role="option" className="scout-select-option" onClick={() => onSelect('__add__')}>
+                      + Add other venue
+                    </button>
+                  </>
+                )}
+              />
+            )}
           </div>
 
           {(fields.some((f) => f.field_id === 'brand') || fields.some((f) => f.field_id === 'placement')) && (
@@ -569,7 +559,7 @@ export default function Log() {
           )}
 
           <button type="submit" className="log-submit-btn">
-            Submit sighting →
+            {editSighting ? 'Update sighting →' : 'Submit sighting →'}
           </button>
         </form>
       </div>

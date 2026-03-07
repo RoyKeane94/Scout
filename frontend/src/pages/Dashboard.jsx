@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import api from '../api/axios';
 
 const VENUE_TYPE_LABELS = {
@@ -64,6 +64,9 @@ export default function Dashboard() {
   const [filter, setFilter] = useState('all');
   const [selectedId, setSelectedId] = useState(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [photoLightboxOpen, setPhotoLightboxOpen] = useState(false);
+  const [deleteConfirmId, setDeleteConfirmId] = useState(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     Promise.all([
@@ -73,10 +76,20 @@ export default function Dashboard() {
   }, []);
 
   useEffect(() => {
-    const onKey = (e) => { if (e.key === 'Escape') closeDrawer(); };
+    const onKey = (e) => {
+      if (e.key === 'Escape') {
+        if (photoLightboxOpen) setPhotoLightboxOpen(false);
+        else closeDrawer();
+      }
+    };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, []);
+  }, [photoLightboxOpen]);
+
+  useEffect(() => {
+    document.body.style.overflow = photoLightboxOpen ? 'hidden' : '';
+    return () => { document.body.style.overflow = ''; };
+  }, [photoLightboxOpen]);
 
   const drawerPhotoUrlRef = useRef(null);
   const selectedIdRef = useRef(selectedId);
@@ -271,6 +284,28 @@ export default function Dashboard() {
 
   const closeDrawer = () => {
     setDrawerOpen(false);
+    setPhotoLightboxOpen(false);
+    setDeleteConfirmId(null);
+  };
+
+  const handleEditSighting = () => {
+    if (!selectedSighting) return;
+    closeDrawer();
+    navigate('/log', { state: { editSighting: selectedSighting } });
+  };
+
+  const handleDeleteSighting = () => {
+    if (!selectedId) return;
+    setDeleteConfirmId(selectedId);
+  };
+
+  const confirmDeleteSighting = () => {
+    if (!deleteConfirmId) return;
+    api.delete(`sightings/${deleteConfirmId}/`).then(() => {
+      setSightings((prev) => prev.filter((s) => s.id !== deleteConfirmId));
+      setDeleteConfirmId(null);
+      closeDrawer();
+    }).catch(() => setDeleteConfirmId(null));
   };
 
   if (loading) {
@@ -592,7 +627,22 @@ export default function Dashboard() {
         <div className="dashboard-drawer-body">
           {selectedSighting && (
             <>
-              <div className="dashboard-drawer-photo">
+              <div
+                className="dashboard-drawer-photo"
+                onClick={() => {
+                  const url = drawerPhotoUrl || (selectedSighting.photo_url && !selectedSighting.photo_url.startsWith(window.location.origin) ? selectedSighting.photo_url : null);
+                  if (url) setPhotoLightboxOpen(true);
+                }}
+                role={drawerPhotoUrl || (selectedSighting.photo_url && !selectedSighting.photo_url.startsWith(window.location.origin)) ? 'button' : undefined}
+                tabIndex={drawerPhotoUrl || (selectedSighting.photo_url && !selectedSighting.photo_url.startsWith(window.location.origin)) ? 0 : undefined}
+                onKeyDown={(e) => {
+                  const url = drawerPhotoUrl || (selectedSighting.photo_url && !selectedSighting.photo_url.startsWith(window.location.origin) ? selectedSighting.photo_url : null);
+                  if (url && (e.key === 'Enter' || e.key === ' ')) {
+                    e.preventDefault();
+                    setPhotoLightboxOpen(true);
+                  }
+                }}
+              >
                 {drawerPhotoUrl ? (
                   <img
                     src={drawerPhotoUrl}
@@ -615,6 +665,28 @@ export default function Dashboard() {
                   </span>
                 )}
               </div>
+              {photoLightboxOpen && (
+                <div
+                  className="dashboard-photo-lightbox"
+                  onClick={() => setPhotoLightboxOpen(false)}
+                  role="dialog"
+                  aria-modal="true"
+                  aria-label="View full size photo"
+                >
+                  <button
+                    type="button"
+                    className="dashboard-photo-lightbox-close"
+                    onClick={e => { e.stopPropagation(); setPhotoLightboxOpen(false); }}
+                    aria-label="Close"
+                  >
+                    &#215;
+                  </button>
+                  <img
+                    src={drawerPhotoUrl || (selectedSighting.photo_url && !selectedSighting.photo_url.startsWith(window.location.origin) ? selectedSighting.photo_url : '')}
+                    alt="Sighting photo"
+                  />
+                </div>
+              )}
               <div className="dashboard-drawer-badge-row">
                 <span className={`dashboard-drawer-badge ${selectedSighting.brand?.is_own_brand ? 'own' : 'comp'}`}>
                   {selectedSighting.brand?.is_own_brand ? 'Your brand' : 'Competitor'}
@@ -665,6 +737,29 @@ export default function Dashboard() {
                   <div className="dashboard-drawer-notes">{selectedSighting.data.notes}</div>
                 </>
               )}
+              <div className="dashboard-drawer-divider" />
+              <div className="dashboard-drawer-actions">
+                <button type="button" className="dashboard-drawer-btn dashboard-drawer-btn-edit" onClick={handleEditSighting}>
+                  Edit
+                </button>
+                {deleteConfirmId === selectedSighting.id ? (
+                  <div className="dashboard-drawer-delete-confirm">
+                    <span>Delete this sighting?</span>
+                    <div className="dashboard-drawer-delete-btns">
+                      <button type="button" className="dashboard-drawer-btn dashboard-drawer-btn-cancel" onClick={() => setDeleteConfirmId(null)}>
+                        Cancel
+                      </button>
+                      <button type="button" className="dashboard-drawer-btn dashboard-drawer-btn-delete" onClick={confirmDeleteSighting}>
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button type="button" className="dashboard-drawer-btn dashboard-drawer-btn-delete-outline" onClick={handleDeleteSighting}>
+                    Delete
+                  </button>
+                )}
+              </div>
             </>
           )}
         </div>

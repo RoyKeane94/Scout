@@ -12,7 +12,7 @@ from .models import Organisation, User, Venue, Brand, FieldConfig, Sighting
 from .serializers import (
     RegisterOrgSerializer, RegisterMemberSerializer, UserSerializer, UserListSerializer,
     VenueSerializer, VenueCreateSerializer, BrandSerializer, FieldConfigSerializer, FieldConfigBulkSerializer,
-    BrandBulkSerializer, SightingSerializer, SightingCreateSerializer
+    BrandBulkSerializer, SightingSerializer, SightingCreateSerializer, SightingUpdateSerializer
 )
 
 
@@ -224,6 +224,29 @@ def sighting_list(request):
         return Response(ser.errors, status=status.HTTP_400_BAD_REQUEST)
     sighting = ser.save()
     return Response(SightingSerializer(sighting, context={'request': request}).data, status=status.HTTP_201_CREATED)
+
+
+@api_view(['PATCH', 'DELETE'])
+@permission_classes([IsAuthenticated])
+def sighting_detail(request, sighting_id):
+    org = request.user.organisation
+    if not org:
+        return Response({'detail': 'No organisation'}, status=status.HTTP_400_BAD_REQUEST)
+    try:
+        sighting = Sighting.objects.get(pk=sighting_id, organisation=org)
+    except Sighting.DoesNotExist:
+        return Response({'detail': 'Not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'DELETE':
+        sighting.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    if request.method == 'PATCH':
+        ser = SightingUpdateSerializer(sighting, data=request.data, partial=True, context={'request': request})
+        if not ser.is_valid():
+            return Response(ser.errors, status=status.HTTP_400_BAD_REQUEST)
+        sighting = ser.save()
+        return Response(SightingSerializer(sighting, context={'request': request}).data)
 
 
 @api_view(['GET'])

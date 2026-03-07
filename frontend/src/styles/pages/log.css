@@ -86,67 +86,92 @@
   color: var(--grey-1);
 }
 
-/* Photo zone */
-.photo-zone {
-  border: 1.5px dashed var(--border);
-  border-radius: 10px;
-  height: 148px;
+/* Photo buttons */
+.log-photo-buttons {
   display: flex;
-  flex-direction: column;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.log-photo-btn {
+  flex: 1;
+  min-width: 120px;
+  display: flex;
   align-items: center;
   justify-content: center;
-  gap: 7px;
-  cursor: pointer;
-  background: var(--bg);
-  transition: border-color 0.2s, background 0.2s;
-  position: relative;
-  overflow: hidden;
-}
-
-.photo-zone:hover {
-  border-color: var(--navy);
+  gap: 8px;
+  padding: 14px 20px;
+  border-radius: 10px;
+  border: 1.5px solid var(--border);
   background: var(--white);
+  color: var(--navy);
+  font-family: 'DM Sans', system-ui, sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s, color 0.2s;
 }
 
-.photo-zone.has-photo {
-  border-style: solid;
+.log-photo-btn:hover {
   border-color: var(--navy);
+  background: var(--grey-3);
 }
 
-.photo-zone img {
-  position: absolute;
-  inset: 0;
+.log-photo-btn-icon {
+  font-size: 18px;
+}
+
+.log-photo-btn-camera {
+  border-color: var(--navy);
+  background: var(--navy);
+  color: var(--white);
+}
+
+.log-photo-btn-camera:hover {
+  background: var(--grey-1);
+  border-color: var(--grey-1);
+  color: var(--white);
+}
+
+.log-photo-btn-upload {
+  background: var(--bg);
+}
+
+.log-photo-preview {
+  position: relative;
+  border-radius: 10px;
+  overflow: hidden;
+  height: 160px;
+  background: var(--grey-3);
+}
+
+.log-photo-preview img {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  border-radius: 9px;
+  border-radius: 10px;
 }
 
-.photo-inner {
-  text-align: center;
-  position: relative;
-  z-index: 1;
+.log-photo-remove {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.5);
+  color: #fff;
+  font-size: 18px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
 }
 
-.photo-icon {
-  font-size: 24px;
-  display: block;
-  margin-bottom: 5px;
-}
-
-.photo-hint {
-  font-size: 12px;
-  color: var(--grey-1);
-  font-weight: 300;
-}
-
-.photo-hint strong {
-  color: var(--navy);
-  font-weight: 500;
-}
-
-.log-page input[type="file"] {
-  display: none;
+.log-photo-remove:hover {
+  background: rgba(0, 0, 0, 0.7);
 }
 
 /* Geo pill (log) */
@@ -551,6 +576,26 @@
   letter-spacing: 0.5px;
 }
 
+.scout-select-option-venue {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.log-venue-type-badge {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  color: var(--grey-1);
+  background: var(--grey-3);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 2px 7px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  flex-shrink: 0;
+}
+
 .log-typeahead-add {
   display: flex;
   align-items: center;
@@ -583,6 +628,17 @@
   justify-content: center;
   font-size: 14px;
   line-height: 1;
+}
+
+.log-venue-add {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.log-venue-add-actions {
+  display: flex;
+  gap: 8px;
 }
 
 .log-new-venue-form {

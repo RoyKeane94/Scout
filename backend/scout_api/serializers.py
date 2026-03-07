@@ -191,3 +191,33 @@ class SightingCreateSerializer(serializers.Serializer):
         if validated_data.get('lng') is not None:
             create_kwargs['lng'] = Decimal(str(validated_data['lng']))
         return Sighting.objects.create(**create_kwargs)
+
+
+class SightingUpdateSerializer(serializers.Serializer):
+    venue_id = serializers.IntegerField(required=False)
+    brand_id = serializers.IntegerField(required=False)
+    photo_b64 = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    lat = serializers.FloatField(required=False, allow_null=True)
+    lng = serializers.FloatField(required=False, allow_null=True)
+    data = serializers.JSONField(required=False)
+
+    def update(self, sighting, validated_data):
+        from decimal import Decimal
+        org = self.context['request'].user.organisation
+        if 'venue_id' in validated_data:
+            sighting.venue = Venue.objects.get(pk=validated_data['venue_id'], organisation=org)
+        if 'brand_id' in validated_data:
+            sighting.brand = Brand.objects.get(pk=validated_data['brand_id'], organisation=org)
+        if 'photo_b64' in validated_data:
+            photo_b64 = validated_data['photo_b64']
+            if photo_b64 and ',' in str(photo_b64) and str(photo_b64).startswith('data:'):
+                photo_b64 = str(photo_b64).split(',', 1)[1]
+            sighting.photo_b64 = photo_b64
+        if 'lat' in validated_data:
+            sighting.lat = Decimal(str(validated_data['lat'])) if validated_data['lat'] is not None else None
+        if 'lng' in validated_data:
+            sighting.lng = Decimal(str(validated_data['lng'])) if validated_data['lng'] is not None else None
+        if 'data' in validated_data:
+            sighting.data = validated_data['data']
+        sighting.save()
+        return sighting
