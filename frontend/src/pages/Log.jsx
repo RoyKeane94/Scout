@@ -37,6 +37,7 @@ export default function Log() {
   const [data, setData] = useState({});
   const [error, setError] = useState('');
   const [submitted, setSubmitted] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
 
   // Venue add form
   const [venueAdding, setVenueAdding] = useState(false);
@@ -220,9 +221,11 @@ export default function Log() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setSubmitting(true);
     const venue = venues.find((v) => v.id === venueId || v.id === parseInt(venueId, 10));
     if (!venue?.id) {
       setError('Please select or add a venue');
+      setSubmitting(false);
       return;
     }
     let resolvedBrandId = brandId || brands[0]?.id;
@@ -236,10 +239,12 @@ export default function Log() {
           setNewBrandName('');
         } catch (err) {
           setError(err.response?.data?.detail || 'Failed to add brand');
+          setSubmitting(false);
           return;
         }
       } else if (!resolvedBrandId) {
         setError('Please select a brand');
+        setSubmitting(false);
         return;
       }
     }
@@ -267,7 +272,8 @@ export default function Log() {
         const d = err.response?.data;
         const msg = d?.detail || (typeof d === 'object' && Object.values(d).flat().find(Boolean)) || 'Failed to submit';
         setError(typeof msg === 'string' ? msg : String(msg));
-      });
+      })
+      .finally(() => setSubmitting(false));
   };
 
   const resetForm = () => {
@@ -644,8 +650,15 @@ export default function Log() {
 
           </div>
 
-          <button type="submit" className="log-submit-btn">
-            {editSighting ? 'Update sighting →' : 'Submit sighting →'}
+          <button type="submit" className="log-submit-btn" disabled={submitting}>
+            {submitting ? (
+              <>
+                <span className="log-submit-spinner" aria-hidden />
+                Submitting…
+              </>
+            ) : (
+              editSighting ? 'Update sighting →' : 'Submit sighting →'
+            )}
           </button>
         </form>
       </div>
