@@ -217,13 +217,13 @@ def sighting_list(request):
 
     if request.method == 'GET':
         sightings = Sighting.objects.filter(organisation=org).select_related('venue', 'brand', 'submitted_by').order_by('-created_at')
-        return Response(SightingSerializer(sightings, many=True).data)
+        return Response(SightingSerializer(sightings, many=True, context={'request': request}).data)
 
     ser = SightingCreateSerializer(data=request.data, context={'request': request})
     if not ser.is_valid():
         return Response(ser.errors, status=status.HTTP_400_BAD_REQUEST)
     sighting = ser.save()
-    return Response(SightingSerializer(sighting).data, status=status.HTTP_201_CREATED)
+    return Response(SightingSerializer(sighting, context={'request': request}).data, status=status.HTTP_201_CREATED)
 
 
 @api_view(['GET'])

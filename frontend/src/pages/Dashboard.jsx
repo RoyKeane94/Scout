@@ -60,6 +60,7 @@ export default function Dashboard() {
   const [page, setPage] = useState('sightings');
   const [drawerPhotoUrl, setDrawerPhotoUrl] = useState(null);
   const [drawerPhotoError, setDrawerPhotoError] = useState(null);
+  const [drawerPhotoErrorReason, setDrawerPhotoErrorReason] = useState(null);
   const [filter, setFilter] = useState('all');
   const [selectedId, setSelectedId] = useState(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -87,38 +88,38 @@ export default function Dashboard() {
       }
       setDrawerPhotoUrl(null);
       setDrawerPhotoError(null);
+      setDrawerPhotoErrorReason(null);
       return;
     }
     setDrawerPhotoUrl(null);
     setDrawerPhotoError(null);
+    setDrawerPhotoErrorReason(null);
     if (drawerPhotoUrlRef.current) {
       URL.revokeObjectURL(drawerPhotoUrlRef.current);
       drawerPhotoUrlRef.current = null;
     }
-    const photoPath = `sightings/${selectedId}/photo/`;
-    console.warn('[Scout] Photo request:', photoPath);
-    api.get(photoPath, { responseType: 'blob' })
+    api.get(`sightings/${selectedId}/photo/`, { responseType: 'blob' })
       .then((res) => {
         const blob = res.data;
         if (!blob || blob.size === 0) {
-          console.warn('[Scout] Photo response empty', blob?.size);
           setDrawerPhotoError('empty');
+          setDrawerPhotoErrorReason('Empty response');
           return;
         }
         if (blob.type && blob.type.startsWith('application/json')) {
-          console.warn('[Scout] Photo response was JSON (server error?)', blob.type);
           setDrawerPhotoError('not_image');
+          setDrawerPhotoErrorReason('Server returned JSON (not an image)');
           return;
         }
-        console.warn('[Scout] Photo loaded', blob.size, blob.type);
         const url = URL.createObjectURL(blob);
         drawerPhotoUrlRef.current = url;
         setDrawerPhotoUrl(url);
       })
       .catch((err) => {
         const status = err.response?.status;
+        const reason = status == null ? 'Network error' : `HTTP ${status}`;
         setDrawerPhotoError(status === 404 ? 'no_photo' : 'failed');
-        console.warn('[Scout] Photo load failed:', status, err.response?.statusText || err.message);
+        setDrawerPhotoErrorReason(status === 404 ? 'No photo stored for this sighting' : reason);
         setDrawerPhotoUrl(null);
       });
     return () => {
@@ -584,13 +585,13 @@ export default function Dashboard() {
           {selectedSighting && (
             <>
               <div className="dashboard-drawer-photo">
-                {selectedSighting.photo_url ? (
-                  <img src={selectedSighting.photo_url} alt="" />
-                ) : drawerPhotoUrl ? (
+                {drawerPhotoUrl ? (
                   <img src={drawerPhotoUrl} alt="" />
+                ) : selectedSighting.photo_url ? (
+                  <img src={selectedSighting.photo_url} alt="" />
                 ) : (
-                  <span className="dashboard-drawer-photo-placeholder" title={drawerPhotoError === 'no_photo' ? 'No photo for this sighting' : drawerPhotoError ? 'Photo failed to load' : ''}>
-                    {drawerPhotoError === 'no_photo' ? 'No photo' : drawerPhotoError ? 'Photo unavailable' : 'Photo'}
+                  <span className="dashboard-drawer-photo-placeholder" title={drawerPhotoErrorReason || (drawerPhotoError === 'no_photo' ? 'No photo for this sighting' : '')}>
+                    {drawerPhotoError === 'no_photo' ? 'No photo' : drawerPhotoError ? (drawerPhotoErrorReason ? `Photo unavailable — ${drawerPhotoErrorReason}` : 'Photo unavailable') : 'Photo'}
                   </span>
                 )}
               </div>
