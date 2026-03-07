@@ -237,6 +237,10 @@ def sighting_photo(request, sighting_id):
         sighting = Sighting.objects.get(pk=sighting_id, organisation=org)
     except Sighting.DoesNotExist:
         return Response({'detail': 'Not found'}, status=status.HTTP_404_NOT_FOUND)
+    # S3: if photo_url is set, redirect to it so the same endpoint works for both storage backends
+    if sighting.photo_url:
+        from django.shortcuts import redirect
+        return redirect(sighting.photo_url)
     if not sighting.photo_b64:
         return Response({'detail': 'No photo'}, status=status.HTTP_404_NOT_FOUND)
     # Strip whitespace/newlines that can break base64 decode (e.g. from JSON or DB)

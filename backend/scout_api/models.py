@@ -69,7 +69,8 @@ class Sighting(models.Model):
     submitted_by = models.ForeignKey(User, on_delete=models.CASCADE)
     venue = models.ForeignKey(Venue, on_delete=models.CASCADE)
     brand = models.ForeignKey(Brand, on_delete=models.CASCADE)
-    photo_b64 = models.TextField(null=True, blank=True)
+    photo_b64 = models.TextField(null=True, blank=True)  # legacy / Postgres-backed; use photo_url when S3
+    photo_url = models.URLField(max_length=500, null=True, blank=True)  # S3 (or CDN) URL when set
     lat = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
     lng = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
     data = models.JSONField(default=dict)

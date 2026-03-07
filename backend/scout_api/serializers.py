@@ -144,10 +144,12 @@ class SightingSerializer(serializers.ModelSerializer):
     venue = VenueSerializer(read_only=True)
     brand = BrandSerializer(read_only=True)
     submitted_by = UserListSerializer(read_only=True)
+    # photo_b64 omitted from list/detail to avoid huge payloads and invalid data URIs; use GET /sightings/<id>/photo/ or photo_url (S3)
+    photo_url = serializers.URLField(read_only=True)
 
     class Meta:
         model = Sighting
-        fields = ['id', 'venue', 'brand', 'photo_b64', 'lat', 'lng', 'data', 'created_at', 'submitted_by']
+        fields = ['id', 'venue', 'brand', 'photo_url', 'lat', 'lng', 'data', 'created_at', 'submitted_by']
 
 
 class SightingCreateSerializer(serializers.Serializer):
