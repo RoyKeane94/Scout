@@ -71,7 +71,7 @@ export default function Join() {
         <div className="auth-container">
           <div className="logo-block">
             <span className="logo">SCOUT<span className="logo-dot">.</span></span>
-            <p className="tagline">Log it. Map it. Act on it.</p>
+            <p className="tagline">Log it. Map it. Launch it.</p>
           </div>
           <div className="auth-card">
             <form onSubmit={handleSubmit}>
@@ -134,7 +134,7 @@ export default function Join() {
       <div className="auth-container">
         <div className="logo-block">
           <span className="logo">SCOUT<span className="logo-dot">.</span></span>
-          <p className="tagline">Log it. Map it. Act on it.</p>
+          <p className="tagline">Log it. Map it. Launch it.</p>
         </div>
         <div className="auth-card">
           <form
