@@ -339,51 +339,6 @@ export default function Log() {
 
           <div className="log-form-fields">
           <div className="log-field-group">
-            <div className="card-label">Photo <span className="optional-hint">(optional)</span></div>
-            {photoB64 ? (
-              <div className="log-photo-preview">
-                <img src={photoB64} alt="" />
-                <button type="button" className="log-photo-remove" onClick={() => setPhotoB64(null)} aria-label="Remove photo">
-                  &#215;
-                </button>
-              </div>
-            ) : (
-              <div className="log-photo-buttons">
-                <input
-                  ref={photoCameraInputRef}
-                  type="file"
-                  accept="image/*"
-                  capture="environment"
-                  onChange={handlePhoto}
-                  style={{ display: 'none' }}
-                />
-                <input
-                  ref={photoUploadInputRef}
-                  type="file"
-                  accept="image/*"
-                  onChange={handlePhoto}
-                  style={{ display: 'none' }}
-                />
-                <button
-                  type="button"
-                  className="log-photo-btn log-photo-btn-camera"
-                  onClick={() => photoCameraInputRef.current?.click()}
-                >
-                  Take photo
-                </button>
-                <button
-                  type="button"
-                  className="log-photo-btn log-photo-btn-upload"
-                  onClick={() => photoUploadInputRef.current?.click()}
-                >
-                  <span className="log-photo-btn-icon">↑</span>
-                  Upload
-                </button>
-              </div>
-            )}
-          </div>
-
-          <div className="log-field-group">
             <div className="card-label">Location</div>
             <div className="log-geo-row">
               <div className="log-geo-pill">
@@ -647,6 +602,51 @@ export default function Log() {
               </div>
             </div>
           )}
+
+          <div className="log-field-group log-field-group-photo">
+            <div className="card-label">Photo <span className="optional-hint">(optional)</span></div>
+            {photoB64 ? (
+              <div className="log-photo-preview">
+                <img src={photoB64} alt="" />
+                <button type="button" className="log-photo-remove" onClick={() => setPhotoB64(null)} aria-label="Remove photo">
+                  &#215;
+                </button>
+              </div>
+            ) : (
+              <div className="log-photo-buttons">
+                <input
+                  ref={photoCameraInputRef}
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  onChange={handlePhoto}
+                  style={{ display: 'none' }}
+                />
+                <input
+                  ref={photoUploadInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handlePhoto}
+                  style={{ display: 'none' }}
+                />
+                <button
+                  type="button"
+                  className="log-photo-btn log-photo-btn-camera"
+                  onClick={() => photoCameraInputRef.current?.click()}
+                >
+                  Take photo
+                </button>
+                <button
+                  type="button"
+                  className="log-photo-btn log-photo-btn-upload"
+                  onClick={() => photoUploadInputRef.current?.click()}
+                >
+                  <span className="log-photo-btn-icon">↑</span>
+                  Upload
+                </button>
+              </div>
+            )}
+          </div>
 
           </div>
 

@@ -64,6 +64,10 @@
   border-bottom: none;
 }
 
+.log-field-group-photo {
+  border-bottom: 1px solid var(--border) !important;
+}
+
 .log-field-group:nth-child(1) { animation-delay: 0.04s; }
 .log-field-group:nth-child(2) { animation-delay: 0.08s; }
 .log-field-group:nth-child(3) { animation-delay: 0.12s; }
@@ -116,7 +120,7 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 10px 16px;
+  padding: 6px 14px;
   border-radius: 10px;
   border: 1.5px solid var(--border);
   background: var(--white);
@@ -764,7 +768,7 @@
   border: none;
   cursor: pointer;
   transition: opacity 0.2s, transform 0.15s;
-  margin-top: 4px;
+  margin-top: 28px;
   animation: logFadeUp 0.3s 0.28s ease both;
 }
 
