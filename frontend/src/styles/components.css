@@ -1,0 +1,271 @@
+/* Shared: buttons, form inputs, ScoutSelect, chips, card-label, errors */
+
+/* Buttons */
+.btn {
+  display: inline-block;
+  padding: 0.75rem 1.5rem;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 1rem;
+  font-weight: 500;
+  text-decoration: none;
+  text-align: center;
+  border: none;
+  border-radius: 2px;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.btn-primary {
+  background: var(--navy);
+  color: var(--white);
+}
+
+.btn-primary:hover {
+  background: var(--navy-hover);
+}
+
+.btn-secondary {
+  background: var(--grey-200);
+  color: var(--grey-800);
+}
+
+.btn-secondary:hover {
+  background: var(--grey-300);
+}
+
+.btn-text {
+  background: transparent;
+  color: var(--grey-600);
+}
+
+.btn-text:hover {
+  color: var(--grey-800);
+}
+
+.card-label {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 1.4px;
+  color: var(--navy);
+  margin-bottom: 20px;
+}
+
+.error-msg {
+  color: var(--error);
+  font-size: 0.9rem;
+  margin: 0;
+}
+
+.join-error-msg {
+  margin-bottom: 12px;
+  min-height: 1.4em;
+}
+
+/* Auth form / Log form base */
+.auth-form, .log-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.auth-form h2, .log-form h2 {
+  font-size: 1.75rem;
+  color: var(--navy);
+  margin: 0 0 0.5rem 0;
+}
+
+.auth-form input,
+.log-form input[type="text"],
+.log-form input[type="email"],
+.log-form input[type="password"],
+.log-form input[type="number"],
+.log-form input[type="file"],
+.log-form select,
+.log-form textarea {
+  padding: 0.75rem;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 1rem;
+  border: 1px solid var(--grey-200);
+  border-radius: 2px;
+  background: var(--white);
+}
+
+.auth-form input:focus,
+.log-form input:focus,
+.log-form select:focus,
+.log-form textarea:focus {
+  outline: none;
+  border-color: var(--navy);
+  box-shadow: 0 0 0 1px var(--navy);
+}
+
+/* ScoutSelect */
+.scout-select {
+  position: relative;
+  width: 100%;
+  z-index: 1;
+}
+
+.scout-select.scout-select-open {
+  z-index: 99999;
+  position: relative;
+}
+
+.scout-select-trigger {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  padding: 11px 13px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 15px;
+  color: var(--navy);
+  background: var(--white);
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  cursor: pointer;
+  text-align: left;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.scout-select-trigger:hover {
+  border-color: var(--grey-2);
+}
+
+.scout-select-trigger.placeholder {
+  color: var(--grey-1);
+  font-weight: 400;
+}
+
+.scout-select-trigger:focus {
+  border-color: var(--navy);
+  box-shadow: 0 0 0 3px rgba(11,30,64,0.05);
+}
+
+.scout-select-value {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.scout-select-chevron {
+  font-size: 10px;
+  color: var(--grey-1);
+  flex-shrink: 0;
+  transition: transform 0.2s;
+}
+
+.scout-select-trigger[aria-expanded="true"] .scout-select-chevron {
+  transform: rotate(180deg);
+}
+
+.scout-select-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 8px 24px rgba(11,30,64,0.1);
+  z-index: 99999;
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.scout-select-option {
+  display: block;
+  width: 100%;
+  padding: 11px 14px;
+  border: none;
+  background: none;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  color: var(--navy);
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.12s;
+  border-bottom: 1px solid var(--border);
+}
+
+.scout-select-option:last-child {
+  border-bottom: none;
+}
+
+.scout-select-option:hover {
+  background: var(--grey-3);
+}
+
+.scout-select-option.selected {
+  background: rgba(11,30,64,0.06);
+  font-weight: 500;
+}
+
+.scout-select-group-label {
+  padding: 8px 14px 4px;
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--grey-1);
+  background: var(--grey-3);
+  border-bottom: 1px solid var(--border);
+}
+
+/* Chips (shared) */
+.dashboard-chip,
+.log-chip {
+  font-family: 'DM Mono', monospace;
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  padding: 3px 8px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  color: var(--grey-1);
+  background: var(--white);
+}
+
+.dashboard-chip.green,
+.log-chip.green {
+  background: var(--green-bg);
+  border-color: var(--green-border);
+  color: var(--green);
+}
+
+.dashboard-chip.amber,
+.log-chip.amber {
+  background: var(--amber-bg);
+  border-color: var(--amber-border);
+  color: var(--amber);
+}
+
+.dashboard-chip.navy,
+.log-chip.navy {
+  background: rgba(11, 30, 64, 0.06);
+  border-color: rgba(11, 30, 64, 0.12);
+  color: var(--navy);
+}
+
+.dashboard-chip.dashboard-chip-neutral {
+  background: var(--grey-3);
+  border-color: var(--border);
+  color: var(--grey-1);
+}
+
+.dashboard-chip.red,
+.log-chip.red {
+  background: var(--red-bg);
+  border-color: var(--red-border);
+  color: var(--error);
+}

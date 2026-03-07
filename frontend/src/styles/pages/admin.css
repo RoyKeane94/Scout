@@ -1,0 +1,565 @@
+/* ── Admin page (Scout style) ── */
+.admin-page {
+  width: 80%;
+  max-width: 1000px;
+  margin-left: auto;
+  margin-right: auto;
+  padding: 28px 20px 72px;
+  background: var(--bg);
+  animation: adminFadeUp 0.3s ease both;
+}
+
+@keyframes adminFadeUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.admin-page .page-header {
+  margin-bottom: 24px;
+}
+
+.admin-page .page-title {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 38px;
+  letter-spacing: 1.5px;
+  color: var(--navy);
+  line-height: 1;
+}
+
+.admin-page .page-sub {
+  font-size: 13px;
+  color: var(--grey-1);
+  font-weight: 300;
+  margin-top: 5px;
+}
+
+/* Tab bar */
+.admin-tab-bar {
+  display: flex;
+  gap: 2px;
+  background: var(--grey-3);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 3px;
+  margin-bottom: 24px;
+  width: fit-content;
+}
+
+.admin-tab {
+  padding: 7px 20px;
+  border-radius: 8px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.15s;
+  color: var(--grey-1);
+  background: transparent;
+  font-weight: 400;
+}
+
+.admin-tab:hover:not(.active) {
+  /* no colour change on hover */
+}
+
+.admin-tab.active {
+  background: var(--white);
+  color: var(--navy);
+  font-weight: 500;
+  box-shadow: 0 1px 4px rgba(11,30,64,0.08);
+}
+
+/* Tab panels */
+.admin-tab-panel {
+  display: none;
+  animation: adminTabIn 0.2s ease both;
+}
+
+.admin-tab-panel.active {
+  display: block;
+}
+
+@keyframes adminTabIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Section label */
+.admin-section-label {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  color: var(--grey-1);
+  margin-bottom: 10px;
+}
+
+/* ═══ TEAM TAB ═══ */
+.admin-invite-code-card {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin-bottom: 16px;
+  box-shadow: 0 2px 8px rgba(11,30,64,0.04);
+}
+
+.admin-invite-code-desc {
+  font-size: 12px;
+  color: var(--grey-1);
+  margin: 0 0 10px 0;
+  font-weight: 400;
+}
+
+.admin-invite-code-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.admin-invite-code {
+  font-family: 'DM Mono', monospace;
+  font-size: 18px;
+  font-weight: 500;
+  letter-spacing: 0.15em;
+  color: var(--navy);
+  background: var(--grey-3);
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  flex: 1;
+}
+
+.admin-invite-copy-btn {
+  padding: 10px 16px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--white);
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--navy);
+  cursor: pointer;
+}
+
+.admin-invite-copy-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.admin-team-meta {
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  color: var(--grey-1);
+  margin-bottom: 12px;
+}
+
+.admin-table-card {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(11,30,64,0.04);
+}
+
+.admin-table-card table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.admin-table-card thead tr {
+  background: var(--grey-3);
+  border-bottom: 1px solid var(--border);
+}
+
+.admin-table-card th {
+  padding: 10px 18px;
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--grey-1);
+  text-align: left;
+}
+
+.admin-table-card td {
+  padding: 13px 18px;
+  font-size: 13px;
+  border-bottom: 1px solid var(--border);
+}
+
+.admin-table-card tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.admin-table-card tbody tr {
+  transition: background 0.12s;
+}
+
+.admin-table-card tbody tr:hover td {
+  /* no colour change on hover */
+}
+
+.admin-role-badge {
+  display: inline-block;
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  padding: 3px 9px;
+  border-radius: 20px;
+}
+
+.admin-role-badge.admin {
+  background: rgba(11,30,64,0.08);
+  color: var(--navy);
+}
+
+.admin-role-badge.member {
+  background: var(--grey-3);
+  color: var(--grey-1);
+  border: 1px solid var(--border);
+}
+
+.admin-date-cell {
+  font-family: 'DM Mono', monospace;
+  font-size: 12px;
+  color: var(--grey-1);
+}
+
+.admin-role-action-cell {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.admin-role-select {
+  font-family: 'DM Mono', monospace;
+  font-size: 12px;
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--white);
+  color: var(--navy);
+  cursor: pointer;
+}
+
+.admin-role-readonly {
+  color: var(--grey-1);
+  font-size: 12px;
+}
+
+.admin-email-cell {
+  color: var(--grey-1);
+  font-size: 13px;
+}
+
+/* ═══ FIELDS TAB ═══ */
+.admin-slot-card {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 13px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  box-shadow: 0 2px 8px rgba(11,30,64,0.04);
+}
+
+.admin-slot-dots {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.admin-slot-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  transition: background 0.2s;
+}
+
+.admin-slot-dot.filled {
+  background: var(--navy);
+}
+
+.admin-slot-dot.empty {
+  background: var(--grey-2);
+}
+
+.admin-slot-text {
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  color: var(--grey-1);
+}
+
+.admin-field-row {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  box-shadow: 0 2px 8px rgba(11,30,64,0.04);
+  transition: border-color 0.15s, opacity 0.2s;
+}
+
+.admin-field-row.on {
+  border-color: rgba(11,30,64,0.2);
+}
+
+.admin-field-row.off {
+  opacity: 0.5;
+}
+
+.admin-field-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.admin-field-name {
+  font-size: 14px;
+  font-weight: 500;
+  margin-bottom: 2px;
+}
+
+.admin-field-desc {
+  font-size: 12px;
+  color: var(--grey-1);
+  font-weight: 300;
+}
+
+/* Admin toggle */
+.admin-toggle {
+  width: 36px;
+  height: 20px;
+  border-radius: 10px;
+  border: none;
+  cursor: pointer;
+  position: relative;
+  flex-shrink: 0;
+  transition: background 0.2s;
+  background: var(--grey-2);
+}
+
+.admin-toggle.on {
+  background: var(--navy);
+}
+
+.admin-toggle::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--white);
+  transition: transform 0.2s;
+}
+
+.admin-toggle.on::after {
+  transform: translateX(16px);
+}
+
+.admin-toggle:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* ═══ BRANDS TAB ═══ */
+.admin-own-brand-row {
+  background: var(--green-bg);
+  border: 1px solid rgba(26,122,74,0.2);
+  border-radius: 10px;
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.admin-yours-badge {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--green);
+  background: var(--green-bg);
+  border: 1px solid rgba(26,122,74,0.25);
+  border-radius: 5px;
+  padding: 3px 8px;
+  flex-shrink: 0;
+}
+
+.admin-own-brand-input {
+  flex: 1;
+  border: none;
+  outline: none;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--navy);
+  background: transparent;
+}
+
+.admin-competitor-list {
+  margin-bottom: 10px;
+}
+
+.admin-competitor-row {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+  box-shadow: 0 1px 4px rgba(11,30,64,0.04);
+  transition: border-color 0.15s;
+}
+
+.admin-competitor-row:hover {
+  /* no colour change on hover */
+}
+
+.admin-competitor-input {
+  flex: 1;
+  border: none;
+  outline: none;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  color: var(--navy);
+  background: transparent;
+}
+
+.admin-competitor-input::placeholder {
+  color: var(--grey-2);
+  font-weight: 300;
+}
+
+.admin-delete-btn {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 16px;
+  color: var(--grey-2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.15s, background 0.15s;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.admin-delete-btn:hover {
+  /* no colour change on hover */
+}
+
+.admin-add-competitor-btn {
+  width: 100%;
+  padding: 11px 14px;
+  border: 1.5px dashed var(--border);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--grey-1);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: border-color 0.15s, color 0.15s;
+  margin-bottom: 20px;
+}
+
+.admin-add-competitor-btn:hover {
+  /* no colour change on hover */
+}
+
+.admin-add-icon {
+  width: 20px;
+  height: 20px;
+  border-radius: 5px;
+  background: var(--grey-3);
+  border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  line-height: 1;
+  flex-shrink: 0;
+  color: var(--grey-1);
+}
+
+/* Save button */
+.admin-save-btn {
+  width: 100%;
+  padding: 14px;
+  border-radius: 10px;
+  background: var(--navy);
+  color: var(--white);
+  font-family: 'DM Mono', monospace;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  border: none;
+  cursor: pointer;
+  transition: opacity 0.2s, transform 0.15s;
+  margin-top: 4px;
+}
+
+.admin-save-btn:hover {
+  /* no colour change on hover */
+}
+
+.admin-save-btn:active {
+  transform: scale(0.99);
+}
+
+.admin-save-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Toast */
+.admin-toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%) translateY(10px);
+  background: var(--navy);
+  color: var(--white);
+  font-family: 'DM Mono', monospace;
+  font-size: 12px;
+  letter-spacing: 0.5px;
+  padding: 10px 20px;
+  border-radius: 20px;
+  opacity: 0;
+  transition: all 0.25s;
+  pointer-events: none;
+  white-space: nowrap;
+  z-index: 100;
+}
+
+.admin-toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+.loading {
+  padding: 2rem;
+  text-align: center;
+  color: var(--grey-600);
+}
+

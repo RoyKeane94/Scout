@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Scout</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: 'DM Sans', system-ui, sans-serif;
+      font-size: 16px;
+      line-height: 1.5;
+      color: #27272a;
+      background: #ffffff;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+    }
+    h1 {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 3rem;
+      color: #0f172a;
+      margin: 0 0 0.5rem 0;
+    }
+    p { margin: 0 0 2rem 0; color: #52525b; }
+    .links {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      align-items: center;
+    }
+    a {
+      display: inline-block;
+      padding: 0.75rem 1.5rem;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 1rem;
+      font-weight: 500;
+      text-decoration: none;
+      border-radius: 2px;
+      transition: background 0.15s;
+    }
+    .btn-primary {
+      background: #0f172a;
+      color: #fff;
+    }
+    .btn-primary:hover { background: #1e293b; }
+    .btn-secondary {
+      background: #e4e4e7;
+      color: #27272a;
+    }
+    .btn-secondary:hover { background: #d4d4d8; }
+    .btn-text { background: transparent; color: #52525b; }
+    .btn-text:hover { color: #27272a; }
+  </style>
+</head>
+<body>
+  <h1>Scout</h1>
+  <p>Field intelligence for drinks brands.</p>
+  <div class="links">
+    <a href="/register" class="btn-primary">Register your brand</a>
+    <a href="/join" class="btn-secondary">I have a code — join my team</a>
+    <a href="/login" class="btn-text">Log in</a>
+    <a href="/api/" class="btn-text">API</a>
+  </div>
+</body>
+</html>

@@ -1,0 +1,44 @@
+/* Scout design tokens */
+:root {
+  --white: #ffffff;
+  --bg: #F7F8FA;
+  --border: #E2E6EC;
+  --navy: #0B1E40;
+  --navy-mid: #1E3A6E;
+  --grey-1: #8A95A3;
+  --grey-2: #C8D0D8;
+  --grey-3: #F0F2F5;
+  --grey-50: #fafafa;
+  --grey-100: #f4f4f5;
+  --grey-200: #e4e4e7;
+  --grey-300: #d4d4d8;
+  --grey-400: #a1a1aa;
+  --grey-500: #71717a;
+  --grey-600: #52525b;
+  --grey-700: #3f3f46;
+  --grey-800: #27272a;
+  --grey-900: #18181b;
+  --navy-dark: #020617;
+  --navy-hover: #1e293b;
+  --green: #1A7A4A;
+  --green-bg: #EDF7F1;
+  --green-border: rgba(26, 122, 74, 0.2);
+  --amber: #92510A;
+  --amber-bg: #FEF3E2;
+  --amber-border: rgba(146, 81, 10, 0.2);
+  --error: #b91c1c;
+  --red: #C0392B;
+  --red-bg: #FDF0EF;
+  --red-border: rgba(185, 28, 28, 0.25);
+  --dashboard-sidebar: 340px;
+
+  /* Type scale – use these for consistent sizing */
+  --text-xs: 0.6875rem;   /* 11px – labels, chips, small meta */
+  --text-sm: 0.8125rem;   /* 13px – secondary text */
+  --text-base: 0.9375rem; /* 15px – body, nav, table cells */
+  --text-md: 1rem;        /* 16px */
+  --text-lg: 1.125rem;    /* 18px – section titles */
+  --text-xl: 1.5rem;     /* 24px – card headings */
+  --text-2xl: 2rem;      /* 32px – page titles */
+  --text-display: 2.25rem; /* 36px – logo */
+}
