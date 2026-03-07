@@ -57,7 +57,7 @@ class Brand(models.Model):
 
 
 class FieldConfig(models.Model):
-    FIELD_IDS = ['brand', 'placement', 'price', 'obs', 'promo', 'notes']
+    FIELD_IDS = ['brand', 'placement', 'price', 'obs', 'promo', 'notes', 'unit']
     organisation = models.ForeignKey(Organisation, on_delete=models.CASCADE)
     field_id = models.CharField(max_length=255)
     is_active = models.BooleanField(default=True)
@@ -74,4 +74,5 @@ class Sighting(models.Model):
     lat = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
     lng = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
     data = models.JSONField(default=dict)
+    promo_details = models.TextField(blank=True, null=True)  # details when a promotion is logged
     created_at = models.DateTimeField(auto_now_add=True)

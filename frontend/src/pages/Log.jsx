@@ -13,6 +13,12 @@ const PLACEMENT_OPTIONS = [
 ];
 const OBS_OPTIONS = ['Stocked', 'POS material', 'Shelf talker', 'Branded fridge', 'Sampling', 'Window display'];
 const PROMO_OPTIONS = ['Full price', 'Promotional price', '2 for 1', '% off', 'Price marked', 'Bundle'];
+
+function isActivePromo(p) {
+  if (!p) return false;
+  const arr = Array.isArray(p) ? p : [p];
+  return arr.some((x) => String(x).trim().toLowerCase() !== 'full price');
+}
 const VENUE_TYPES = ['cafe', 'pub', 'bar', 'deli', 'gym', 'restaurant', 'shop', 'other'];
 const VENUE_TYPE_LABELS = { cafe: 'Cafe', pub: 'Pub', bar: 'Bar', deli: 'Deli', gym: 'Gym', restaurant: 'Restaurant', shop: 'Shop', other: 'Other' };
 
@@ -44,6 +50,9 @@ export default function Log() {
   const [geoLng, setGeoLng] = useState(null);
   const [geoError, setGeoError] = useState(null);
   const [geoLoading, setGeoLoading] = useState(true);
+  const [geoRefreshed, setGeoRefreshed] = useState(false);
+  const [geoAddress, setGeoAddress] = useState(null);
+  const [geoAddressLoading, setGeoAddressLoading] = useState(false);
 
   // Brand add
   const [brandAdding, setBrandAdding] = useState(false);
@@ -61,7 +70,10 @@ export default function Log() {
     if (!editSighting) return;
     setVenueId(editSighting.venue?.id ? String(editSighting.venue.id) : '');
     setBrandId(editSighting.brand?.id ? String(editSighting.brand.id) : '');
-    setData(editSighting.data || {});
+    setData({
+      ...(editSighting.data || {}),
+      promo_details: editSighting.promo_details ?? editSighting.data?.promo_details ?? '',
+    });
     setCoords({
       lat: editSighting.lat != null ? Number(editSighting.lat) : null,
       lng: editSighting.lng != null ? Number(editSighting.lng) : null,
@@ -84,9 +96,40 @@ export default function Log() {
     if (geoLat != null && geoLng != null) setCoords({ lat: geoLat, lng: geoLng });
   }, [geoLat, geoLng]);
 
+  useEffect(() => {
+    if (geoLat == null || geoLng == null) {
+      setGeoAddress(null);
+      setGeoAddressLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setGeoAddress(null);
+    setGeoAddressLoading(true);
+    const timer = setTimeout(() => {
+      fetch(
+        `https://nominatim.openstreetmap.org/reverse?lat=${geoLat}&lon=${geoLng}&format=json`,
+        { headers: { 'User-Agent': 'Scout/1.0 (field-logging-app)' } }
+      )
+        .then((res) => res.json())
+        .then((data) => {
+          if (!cancelled && data?.display_name) setGeoAddress(data.display_name);
+        })
+        .catch(() => {})
+        .finally(() => {
+          if (!cancelled) setGeoAddressLoading(false);
+        });
+    }, 500);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+      setGeoAddressLoading(false);
+    };
+  }, [geoLat, geoLng]);
+
   const getGeo = () => {
     setGeoLoading(true);
     setGeoError(null);
+    setGeoRefreshed(false);
     if (!navigator.geolocation) {
       setGeoError('Location unavailable');
       setGeoLoading(false);
@@ -97,6 +140,8 @@ export default function Log() {
         setGeoLat(pos.coords.latitude);
         setGeoLng(pos.coords.longitude);
         setGeoLoading(false);
+        setGeoRefreshed(true);
+        setTimeout(() => setGeoRefreshed(false), 2000);
       },
       () => {
         setGeoError('Location unavailable');
@@ -198,11 +243,13 @@ export default function Log() {
         return;
       }
     }
+    const payloadData = { ...data };
+    if (!isActivePromo(data.promo)) delete payloadData.promo_details;
     const payload = {
       venue_id: Number(venue.id),
       brand_id: Number(resolvedBrandId),
       photo_b64: photoB64 || null,
-      data,
+      data: payloadData,
     };
     if (coords.lat != null && coords.lng != null) {
       payload.lat = Number(coords.lat);
@@ -239,9 +286,13 @@ export default function Log() {
     ? 'Locating…'
     : geoError
       ? geoError
-      : geoLat != null && geoLng != null
-        ? `${geoLat.toFixed(5)}° N, ${Math.abs(geoLng).toFixed(5)}° W`
-        : 'Locating…';
+      : geoAddressLoading
+        ? 'Looking up address…'
+        : geoAddress
+          ? geoAddress
+          : geoLat != null && geoLng != null
+            ? `${geoLat.toFixed(5)}° N, ${Math.abs(geoLng).toFixed(5)}° W`
+            : 'Locating…';
 
   if (step === 'confirm') {
     return (
@@ -280,7 +331,8 @@ export default function Log() {
         <form onSubmit={handleSubmit} id="log-form-body">
           {error && <p className="error-msg" style={{ marginBottom: 16 }}>{error}</p>}
 
-          <div className="log-card">
+          <div className="log-form-fields">
+          <div className="log-field-group">
             <div className="card-label">Photo <span className="optional-hint">(optional)</span></div>
             {photoB64 ? (
               <div className="log-photo-preview">
@@ -325,20 +377,24 @@ export default function Log() {
             )}
           </div>
 
-          <div className="log-card">
+          <div className="log-field-group">
             <div className="card-label">Location</div>
             <div className="log-geo-row">
               <div className="log-geo-pill">
-                <div className="log-geo-dot" />
+                {geoAddressLoading ? (
+                  <span className="log-geo-spinner" aria-hidden />
+                ) : (
+                  <div className="log-geo-dot" />
+                )}
                 <span className="log-geo-text">{geoText}</span>
               </div>
-              <button type="button" className="log-geo-refresh-btn" onClick={getGeo} title="Refresh location">
-                Refresh
+              <button type="button" className="log-geo-refresh-btn" onClick={getGeo} title="Refresh location" disabled={geoLoading}>
+                {geoRefreshed ? 'Refreshed' : geoLoading ? 'Locating…' : 'Refresh'}
               </button>
             </div>
           </div>
 
-          <div className="log-card">
+          <div className="log-field-group">
             <div className="card-label">Venue</div>
             {venueAdding ? (
               <div className="log-venue-add">
@@ -409,7 +465,7 @@ export default function Log() {
           </div>
 
           {(fields.some((f) => f.field_id === 'brand') || fields.some((f) => f.field_id === 'placement')) && (
-            <div className="log-card">
+            <div className="log-field-group">
               <div className="log-field-row">
                 {fields.some((f) => f.field_id === 'brand') && (
                   <div className="log-field">
@@ -487,7 +543,7 @@ export default function Log() {
           )}
 
           {fields.some((f) => f.field_id === 'price') && (
-            <div className="log-card">
+            <div className="log-field-group">
               <div className="card-label">Price</div>
               <div className="log-field">
                 <label>Retail price</label>
@@ -508,7 +564,7 @@ export default function Log() {
           )}
 
           {fields.some((f) => f.field_id === 'promo') && (
-            <div className="log-card">
+            <div className="log-field-group">
               <div className="card-label">Promotion</div>
               <div className="log-chips">
                 {PROMO_OPTIONS.map((opt) => (
@@ -522,11 +578,22 @@ export default function Log() {
                   </button>
                 ))}
               </div>
+              {isActivePromo(data.promo) && (
+                <div className="log-field" style={{ marginTop: 12 }}>
+                  <label>Promo details</label>
+                  <textarea
+                    value={data.promo_details ?? ''}
+                    onChange={(e) => updateData('promo_details', e.target.value)}
+                    placeholder="e.g. 2 for £5, 20% off until Sunday…"
+                    rows={3}
+                  />
+                </div>
+              )}
             </div>
           )}
 
           {fields.some((f) => f.field_id === 'obs') && (
-            <div className="log-card">
+            <div className="log-field-group">
               <div className="card-label">Observation type</div>
               <div className="log-chips">
                 {OBS_OPTIONS.map((opt) => (
@@ -543,8 +610,25 @@ export default function Log() {
             </div>
           )}
 
+          {fields.some((f) => f.field_id === 'unit') && (
+            <div className="log-field-group">
+              <div className="card-label">Multipack or Single unit</div>
+              <div className="log-field">
+                <ScoutSelect
+                  value={data.unit || ''}
+                  onChange={(v) => updateData('unit', v)}
+                  placeholder="Please select…"
+                  options={[
+                    { value: 'Multipack', label: 'Multipack' },
+                    { value: 'Single unit', label: 'Single unit' },
+                  ]}
+                />
+              </div>
+            </div>
+          )}
+
           {fields.some((f) => f.field_id === 'notes') && (
-            <div className="log-card">
+            <div className="log-field-group">
               <div className="card-label">Notes</div>
               <div className="log-field">
                 <label>Notes</label>
@@ -557,6 +641,8 @@ export default function Log() {
               </div>
             </div>
           )}
+
+          </div>
 
           <button type="submit" className="log-submit-btn">
             {editSighting ? 'Update sighting →' : 'Submit sighting →'}

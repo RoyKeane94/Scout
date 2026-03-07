@@ -122,6 +122,9 @@
   .header-link {
     font-size: var(--text-sm);
   }
+  .header-link-dashboard {
+    display: none;
+  }
   .header-logo {
     font-size: var(--text-2xl);
   }

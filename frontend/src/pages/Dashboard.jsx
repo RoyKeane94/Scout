@@ -693,8 +693,8 @@ export default function Dashboard() {
                 </span>
               </div>
               <div className="dashboard-drawer-fields">
-                {['placement', 'price', 'obs', 'promo'].map((key) => {
-                  const labels = { placement: 'Placement', price: 'Price', obs: 'Observation', promo: 'Promo' };
+                {['placement', 'price', 'obs', 'promo', 'unit'].map((key) => {
+                  const labels = { placement: 'Placement', price: 'Price', obs: 'Observation', promo: 'Promo', unit: 'Unit' };
                   const val = selectedSighting.data?.[key] ?? '—';
                   const isOwn = selectedSighting.brand?.is_own_brand;
                   const cls = key === 'obs' ? (isOwn ? 'green' : 'amber') : '';
@@ -718,6 +718,9 @@ export default function Dashboard() {
                 {isActivePromo(selectedSighting.data?.promo) && (
                   <span className="dashboard-chip amber">{selectedSighting.data.promo}</span>
                 )}
+                {selectedSighting.data?.unit && (
+                  <span className="dashboard-chip navy">{selectedSighting.data.unit}</span>
+                )}
               </div>
               <div className="dashboard-drawer-divider" />
               <div className="dashboard-drawer-section-label">Logged by</div>
@@ -731,6 +734,12 @@ export default function Dashboard() {
                   <div className="dashboard-sub-count-label">sightings</div>
                 </div>
               </div>
+              {(selectedSighting.promo_details || selectedSighting.data?.promo_details) && (
+                <>
+                  <div className="dashboard-drawer-section-label">Promo details</div>
+                  <div className="dashboard-drawer-notes">{selectedSighting.promo_details || selectedSighting.data?.promo_details}</div>
+                </>
+              )}
               {selectedSighting.data?.notes && (
                 <>
                   <div className="dashboard-drawer-section-label">Notes</div>

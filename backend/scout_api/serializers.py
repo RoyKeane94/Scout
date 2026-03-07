@@ -149,7 +149,7 @@ class SightingSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Sighting
-        fields = ['id', 'venue', 'brand', 'photo_url', 'lat', 'lng', 'data', 'created_at', 'submitted_by']
+        fields = ['id', 'venue', 'brand', 'photo_url', 'lat', 'lng', 'data', 'promo_details', 'created_at', 'submitted_by']
 
     def get_photo_url(self, obj):
         if obj.photo_url:
@@ -178,13 +178,15 @@ class SightingCreateSerializer(serializers.Serializer):
         photo_b64 = validated_data.get('photo_b64')
         if photo_b64 and ',' in photo_b64 and photo_b64.startswith('data:'):
             photo_b64 = photo_b64.split(',', 1)[1]
+        data_dict = validated_data.get('data', {}) or {}
         create_kwargs = {
             'organisation': org,
             'submitted_by': user,
             'venue': venue,
             'brand': brand,
             'photo_b64': photo_b64,
-            'data': validated_data.get('data', {}),
+            'data': data_dict,
+            'promo_details': data_dict.get('promo_details') or None,
         }
         if validated_data.get('lat') is not None:
             create_kwargs['lat'] = Decimal(str(validated_data['lat']))
@@ -218,6 +220,8 @@ class SightingUpdateSerializer(serializers.Serializer):
         if 'lng' in validated_data:
             sighting.lng = Decimal(str(validated_data['lng'])) if validated_data['lng'] is not None else None
         if 'data' in validated_data:
-            sighting.data = validated_data['data']
+            data_dict = validated_data['data']
+            sighting.data = data_dict
+            sighting.promo_details = data_dict.get('promo_details') or None
         sighting.save()
         return sighting

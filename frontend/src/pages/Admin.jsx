@@ -9,6 +9,7 @@ const FIELD_LABELS = {
   obs: 'Observations',
   promo: 'Promo',
   notes: 'Notes',
+  unit: 'Multipack or Single unit',
 };
 
 const FIELD_DESCS = {
@@ -18,9 +19,10 @@ const FIELD_DESCS = {
   obs: 'Type of activity spotted',
   promo: 'Any deal or campaign running?',
   notes: 'Anything else to capture?',
+  unit: 'Pack format: multipack or single unit',
 };
 
-const ALL_FIELDS = ['brand', 'placement', 'price', 'obs', 'promo', 'notes'];
+const ALL_FIELDS = ['brand', 'placement', 'price', 'obs', 'promo', 'notes', 'unit'];
 
 export default function Admin() {
   const { user } = useAuth();

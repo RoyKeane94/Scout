@@ -46,39 +46,55 @@
   margin-top: 5px;
 }
 
-.log-card {
-  background: var(--white);
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  padding: 18px;
-  margin-bottom: 10px;
-  box-shadow: 0 2px 8px rgba(11,30,64,0.04);
+.log-form-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.log-field-group {
+  padding: 16px 0;
+  border-bottom: 1px solid var(--border);
   animation: logFadeUp 0.3s ease both;
   overflow: visible;
   position: relative;
 }
 
-.log-card:nth-child(1) { animation-delay: 0.04s; }
-.log-card:nth-child(2) { animation-delay: 0.08s; }
-.log-card:nth-child(3) { animation-delay: 0.12s; }
-.log-card:nth-child(4) { animation-delay: 0.16s; }
-.log-card:nth-child(5) { animation-delay: 0.20s; }
-.log-card:nth-child(6) { animation-delay: 0.24s; }
-.log-card:nth-child(7) { animation-delay: 0.28s; }
-.log-card:nth-child(8) { animation-delay: 0.32s; }
+.log-field-group:last-child {
+  border-bottom: none;
+}
+
+.log-field-group:nth-child(1) { animation-delay: 0.04s; }
+.log-field-group:nth-child(2) { animation-delay: 0.08s; }
+.log-field-group:nth-child(3) { animation-delay: 0.12s; }
+.log-field-group:nth-child(4) { animation-delay: 0.16s; }
+.log-field-group:nth-child(5) { animation-delay: 0.20s; }
+.log-field-group:nth-child(6) { animation-delay: 0.24s; }
+.log-field-group:nth-child(7) { animation-delay: 0.28s; }
+.log-field-group:nth-child(8) { animation-delay: 0.32s; }
 
 @keyframes logFadeUp {
   from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
-.log-card.log-typeahead-open {
+.log-field-group.log-typeahead-open {
   z-index: 9999;
   position: relative;
 }
 
-.log-card .card-label {
+.log-field-group .card-label {
   margin-bottom: 12px;
+}
+
+/* Success card and other standalone cards keep full styling */
+.log-success-card,
+.log-card.log-success-card {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 18px;
+  box-shadow: 0 2px 8px rgba(11,30,64,0.04);
 }
 
 .optional-hint {
@@ -100,7 +116,7 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 14px 20px;
+  padding: 10px 16px;
   border-radius: 10px;
   border: 1.5px solid var(--border);
   background: var(--white);
@@ -192,6 +208,8 @@
   padding: 7px 13px;
   transition: border-color 0.15s;
   user-select: none;
+  max-width: 100%;
+  min-width: 0;
 }
 
 .log-geo-refresh-btn {
@@ -208,9 +226,14 @@
   transition: border-color 0.15s, background 0.15s;
 }
 
-.log-geo-refresh-btn:hover {
+.log-geo-refresh-btn:hover:not(:disabled) {
   border-color: var(--navy);
   background: var(--grey-3);
+}
+
+.log-geo-refresh-btn:disabled {
+  opacity: 0.8;
+  cursor: default;
 }
 
 .log-geo-dot {
@@ -222,6 +245,20 @@
   animation: geoBlink 2s infinite;
 }
 
+.log-geo-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--border);
+  border-top-color: var(--navy);
+  border-radius: 50%;
+  flex-shrink: 0;
+  animation: logGeoSpin 0.7s linear infinite;
+}
+
+@keyframes logGeoSpin {
+  to { transform: rotate(360deg); }
+}
+
 @keyframes geoBlink {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.3; }
@@ -231,6 +268,8 @@
   font-family: 'DM Mono', monospace;
   font-size: 11px;
   color: var(--grey-1);
+  word-break: break-word;
+  line-height: 1.3;
 }
 
 .log-geo-refresh {
