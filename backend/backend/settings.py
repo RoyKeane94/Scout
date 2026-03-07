@@ -58,6 +58,8 @@ TEMPLATES = [
 
 _django_env = (os.environ.get('DJANGO_ENV') or '').strip().lower()
 if _django_env == 'production':
+    # Trust X-Forwarded-Proto so build_absolute_uri() returns https (avoids mixed content)
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
     # Production must use PostgreSQL. SQLite in a container is ephemeral — data is lost on every deploy.
     # Accept Railway-style vars (PGHOST, etc.) or explicit DB_* or a single DATABASE_URL.
     _database_url = os.environ.get('DATABASE_URL')

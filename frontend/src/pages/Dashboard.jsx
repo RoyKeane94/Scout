@@ -587,9 +587,13 @@ export default function Dashboard() {
               <div className="dashboard-drawer-photo">
                 {drawerPhotoUrl ? (
                   <img src={drawerPhotoUrl} alt="" />
-                ) : selectedSighting.photo_url ? (
-                  <img src={selectedSighting.photo_url} alt="" />
-                ) : (
+                ) : (() => {
+                  // Only use photo_url in img when it's external (e.g. S3). Our API photo endpoint
+                  // requires auth; img tags don't send Authorization, so that would 401.
+                  const url = selectedSighting.photo_url;
+                  const isExternal = url && !url.startsWith(window.location.origin);
+                  return isExternal ? <img src={url} alt="" /> : null;
+                })() ?? (
                   <span className="dashboard-drawer-photo-placeholder" title={drawerPhotoErrorReason || (drawerPhotoError === 'no_photo' ? 'No photo for this sighting' : '')}>
                     {drawerPhotoError === 'no_photo' ? 'No photo' : drawerPhotoError ? (drawerPhotoErrorReason ? `Photo unavailable — ${drawerPhotoErrorReason}` : 'Photo unavailable') : 'Photo'}
                   </span>
