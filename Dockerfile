@@ -21,6 +21,10 @@ COPY backend/ backend/
 # Copy built frontend from stage 1 (Django expects frontend/dist at repo root)
 COPY --from=frontend-build /app/frontend/dist frontend/dist
 
+# Entrypoint: run migrations then start gunicorn
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
 # Collect static files (optional; WhiteNoise can serve from STATIC_ROOT)
 RUN cd backend && python manage.py collectstatic --noinput --settings=backend.settings 2>/dev/null || true
 
@@ -29,4 +33,4 @@ ENV PORT=8000
 EXPOSE 8000
 
 WORKDIR /app/backend
-CMD gunicorn backend.wsgi:application --bind 0.0.0.0:${PORT:-8000}
+ENTRYPOINT ["/entrypoint.sh"]
