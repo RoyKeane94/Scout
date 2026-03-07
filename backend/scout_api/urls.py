@@ -17,4 +17,5 @@ urlpatterns = [
     path('users/<int:user_id>/role/', views.user_update_role),
     path('venues/', views.venue_list),
     path('sightings/', views.sighting_list),
+    path('sightings/<int:sighting_id>/photo/', views.sighting_photo),
 ]

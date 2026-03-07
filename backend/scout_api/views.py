@@ -1,3 +1,5 @@
+import base64
+from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
@@ -222,3 +224,23 @@ def sighting_list(request):
         return Response(ser.errors, status=status.HTTP_400_BAD_REQUEST)
     sighting = ser.save()
     return Response(SightingSerializer(sighting).data, status=status.HTTP_201_CREATED)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def sighting_photo(request, sighting_id):
+    """Return sighting photo as image/jpeg for authenticated users in the same org."""
+    org = request.user.organisation
+    if not org:
+        return Response({'detail': 'No organisation'}, status=status.HTTP_404_NOT_FOUND)
+    try:
+        sighting = Sighting.objects.get(pk=sighting_id, organisation=org)
+    except Sighting.DoesNotExist:
+        return Response({'detail': 'Not found'}, status=status.HTTP_404_NOT_FOUND)
+    if not sighting.photo_b64:
+        return Response({'detail': 'No photo'}, status=status.HTTP_404_NOT_FOUND)
+    try:
+        raw = base64.b64decode(sighting.photo_b64, validate=True)
+    except Exception:
+        return Response({'detail': 'Invalid photo'}, status=status.HTTP_400_BAD_REQUEST)
+    return HttpResponse(raw, content_type='image/jpeg')

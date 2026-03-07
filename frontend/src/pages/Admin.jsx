@@ -23,7 +23,7 @@ const FIELD_DESCS = {
 const ALL_FIELDS = ['brand', 'placement', 'price', 'obs', 'promo', 'notes'];
 
 export default function Admin() {
-  const { user, refreshUser } = useAuth();
+  const { user } = useAuth();
   const [tab, setTab] = useState('team');
   const [team, setTeam] = useState([]);
   const [orgCode, setOrgCode] = useState('');
@@ -135,17 +135,6 @@ export default function Admin() {
 
   const adminCount = team.filter((u) => u.role === 'admin').length;
 
-  const updateUserRole = (userId, newRole) => {
-    api
-      .patch(`/users/${userId}/role/`, { role: newRole })
-      .then((updated) => {
-        setTeam((prev) => prev.map((u) => (u.id === userId ? { ...u, ...updated } : u)));
-        if (updated.id === user?.id) refreshUser();
-        showToast(newRole === 'admin' ? 'User is now an admin' : 'User is now a member');
-      })
-      .catch(() => showToast('Failed to update role'));
-  };
-
   return (
     <div className="page admin-page">
       <div className="page-header">
@@ -200,7 +189,6 @@ export default function Admin() {
                 <th>Email</th>
                 <th>Role</th>
                 <th>Joined</th>
-                <th></th>
               </tr>
             </thead>
             <tbody>
@@ -215,21 +203,6 @@ export default function Admin() {
                   </td>
                   <td className="admin-date-cell">
                     {u.date_joined ? new Date(u.date_joined).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}
-                  </td>
-                  <td className="admin-role-action-cell">
-                    {u.role === 'admin' ? (
-                      <select
-                        className="admin-role-select"
-                        value={u.role}
-                        onChange={(e) => updateUserRole(u.id, e.target.value)}
-                        aria-label={`Change role for ${u.email}`}
-                      >
-                        <option value="admin">Admin</option>
-                        <option value="member">Member</option>
-                      </select>
-                    ) : (
-                      <span className="admin-role-readonly">—</span>
-                    )}
                   </td>
                 </tr>
               ))}

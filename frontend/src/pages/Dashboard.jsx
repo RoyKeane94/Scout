@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../api/axios';
 
@@ -58,6 +58,7 @@ export default function Dashboard() {
   const [brands, setBrands] = useState([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState('sightings');
+  const [drawerPhotoUrl, setDrawerPhotoUrl] = useState(null);
   const [filter, setFilter] = useState('all');
   const [selectedId, setSelectedId] = useState(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -74,6 +75,37 @@ export default function Dashboard() {
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
   }, []);
+
+  const drawerPhotoUrlRef = useRef(null);
+  // Load photo from API when drawer opens (works in production where data URI may be blocked or omitted)
+  useEffect(() => {
+    if (!selectedId || !drawerOpen) {
+      if (drawerPhotoUrlRef.current) {
+        URL.revokeObjectURL(drawerPhotoUrlRef.current);
+        drawerPhotoUrlRef.current = null;
+      }
+      setDrawerPhotoUrl(null);
+      return;
+    }
+    setDrawerPhotoUrl(null);
+    if (drawerPhotoUrlRef.current) {
+      URL.revokeObjectURL(drawerPhotoUrlRef.current);
+      drawerPhotoUrlRef.current = null;
+    }
+    api.get(`/sightings/${selectedId}/photo/`, { responseType: 'blob' })
+      .then((res) => {
+        const url = URL.createObjectURL(res.data);
+        drawerPhotoUrlRef.current = url;
+        setDrawerPhotoUrl(url);
+      })
+      .catch(() => setDrawerPhotoUrl(null));
+    return () => {
+      if (drawerPhotoUrlRef.current) {
+        URL.revokeObjectURL(drawerPhotoUrlRef.current);
+        drawerPhotoUrlRef.current = null;
+      }
+    };
+  }, [selectedId, drawerOpen]);
 
   const ownBrandName = useMemo(() => brands.find((b) => b.is_own_brand)?.name || 'Your brand', [brands]);
 
@@ -530,7 +562,9 @@ export default function Dashboard() {
           {selectedSighting && (
             <>
               <div className="dashboard-drawer-photo">
-                {selectedSighting.photo_b64 ? (
+                {drawerPhotoUrl ? (
+                  <img src={drawerPhotoUrl} alt="" />
+                ) : selectedSighting.photo_b64 ? (
                   <img src={`data:image/jpeg;base64,${selectedSighting.photo_b64}`} alt="" />
                 ) : (
                   <span className="dashboard-drawer-photo-placeholder">Photo</span>

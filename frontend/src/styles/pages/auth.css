@@ -218,6 +218,10 @@
 
 .btn-auth-primary:hover { opacity: 0.86; }
 .btn-auth-primary:active { transform: scale(0.99); }
+.btn-auth-primary.btn-auth-copied {
+  background: var(--green);
+  opacity: 1;
+}
 
 .auth-footer {
   text-align: center;

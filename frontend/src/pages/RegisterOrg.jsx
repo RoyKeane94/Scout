@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext';
 export default function RegisterOrg() {
   const [step, setStep] = useState('form');
   const [code, setCode] = useState('');
+  const [copied, setCopied] = useState(false);
   const [form, setForm] = useState({ brand_name: '', name: '', email: '', password: '', confirmPassword: '' });
   const [error, setError] = useState('');
   const navigate = useNavigate();
@@ -31,7 +32,10 @@ export default function RegisterOrg() {
   };
 
   const copyCode = () => {
-    navigator.clipboard.writeText(code);
+    navigator.clipboard.writeText(code).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+    });
   };
 
   if (step === 'confirm') {
@@ -45,8 +49,8 @@ export default function RegisterOrg() {
           <div className="auth-card">
             <div className="card-label">Your team code</div>
             <div className="code-display">{code}</div>
-            <button type="button" className="btn-auth-primary" onClick={copyCode}>
-              Copy code
+            <button type="button" className={`btn-auth-primary ${copied ? 'btn-auth-copied' : ''}`} onClick={copyCode}>
+              {copied ? 'Copied!' : 'Copy code'}
             </button>
             <p className="confirm-msg">Share this code with your team so they can sign up.</p>
             <button type="button" className="btn-auth-secondary" onClick={() => navigate('/log')}>
