@@ -79,6 +79,8 @@ export default function Dashboard() {
   }, []);
 
   const drawerPhotoUrlRef = useRef(null);
+  const selectedIdRef = useRef(selectedId);
+  selectedIdRef.current = selectedId;
   // Load photo from API when drawer opens (Postgres-backed; S3 uses photo_url from API)
   useEffect(() => {
     if (!selectedId || !drawerOpen) {
@@ -98,8 +100,11 @@ export default function Dashboard() {
       URL.revokeObjectURL(drawerPhotoUrlRef.current);
       drawerPhotoUrlRef.current = null;
     }
-    api.get(`sightings/${selectedId}/photo/`, { responseType: 'blob' })
+    const controller = new AbortController();
+    const id = selectedId;
+    api.get(`sightings/${selectedId}/photo/`, { responseType: 'blob', signal: controller.signal })
       .then((res) => {
+        if (selectedIdRef.current !== id) return;
         const blob = res.data;
         if (!blob || blob.size === 0) {
           setDrawerPhotoError('empty');
@@ -116,6 +121,8 @@ export default function Dashboard() {
         setDrawerPhotoUrl(url);
       })
       .catch((err) => {
+        if (err.name === 'AbortError' || err.code === 'ERR_CANCELED') return;
+        if (selectedIdRef.current !== id) return;
         const status = err.response?.status;
         const reason = status == null ? 'Network error' : `HTTP ${status}`;
         setDrawerPhotoError(status === 404 ? 'no_photo' : 'failed');
@@ -123,6 +130,7 @@ export default function Dashboard() {
         setDrawerPhotoUrl(null);
       });
     return () => {
+      controller.abort();
       if (drawerPhotoUrlRef.current) {
         URL.revokeObjectURL(drawerPhotoUrlRef.current);
         drawerPhotoUrlRef.current = null;
@@ -586,7 +594,15 @@ export default function Dashboard() {
             <>
               <div className="dashboard-drawer-photo">
                 {drawerPhotoUrl ? (
-                  <img src={drawerPhotoUrl} alt="" />
+                  <img
+                    src={drawerPhotoUrl}
+                    alt=""
+                    onError={() => {
+                      setDrawerPhotoError('failed');
+                      setDrawerPhotoErrorReason('Image failed to load');
+                      setDrawerPhotoUrl(null);
+                    }}
+                  />
                 ) : (() => {
                   // Only use photo_url in img when it's external (e.g. S3). Our API photo endpoint
                   // requires auth; img tags don't send Authorization, so that would 401.

@@ -245,6 +245,9 @@ def sighting_photo(request, sighting_id):
         return Response({'detail': 'No photo'}, status=status.HTTP_404_NOT_FOUND)
     # Strip whitespace/newlines that can break base64 decode (e.g. from JSON or DB)
     b64_clean = (sighting.photo_b64 or '').replace('\n', '').replace('\r', '').replace(' ', '').strip()
+    # Strip data URL prefix if present (frontend sends "data:image/jpeg;base64,..." from readAsDataURL)
+    if ',' in b64_clean and b64_clean.startswith('data:'):
+        b64_clean = b64_clean.split(',', 1)[1]
     if not b64_clean:
         return Response({'detail': 'No photo'}, status=status.HTTP_404_NOT_FOUND)
     try:

@@ -175,12 +175,15 @@ class SightingCreateSerializer(serializers.Serializer):
         user = self.context['request'].user
         venue = Venue.objects.get(pk=validated_data['venue_id'], organisation=org)
         brand = Brand.objects.get(pk=validated_data['brand_id'], organisation=org)
+        photo_b64 = validated_data.get('photo_b64')
+        if photo_b64 and ',' in photo_b64 and photo_b64.startswith('data:'):
+            photo_b64 = photo_b64.split(',', 1)[1]
         create_kwargs = {
             'organisation': org,
             'submitted_by': user,
             'venue': venue,
             'brand': brand,
-            'photo_b64': validated_data.get('photo_b64'),
+            'photo_b64': photo_b64,
             'data': validated_data.get('data', {}),
         }
         if validated_data.get('lat') is not None:
