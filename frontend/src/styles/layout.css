@@ -155,6 +155,22 @@
   font-style: italic;
 }
 
+.footer-links {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.footer-link {
+  color: rgba(255, 255, 255, 0.85);
+  text-decoration: none;
+  font-size: var(--text-sm);
+}
+
+.footer-link:hover {
+  color: var(--white);
+}
+
 .footer-copy {
   font-family: 'DM Mono', monospace;
   font-size: var(--text-xs);

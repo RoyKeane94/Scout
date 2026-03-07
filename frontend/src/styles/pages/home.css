@@ -1,0 +1,115 @@
+/* Landing page – hero, three boxes (header/footer from app shell) */
+.landing-page {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: var(--white);
+  color: var(--navy);
+}
+
+.landing-hero {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 64px 40px 48px;
+  text-align: center;
+}
+
+.landing-logo {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: clamp(80px, 18vw, 160px);
+  letter-spacing: 8px;
+  line-height: 1;
+  color: var(--navy);
+  margin-bottom: 16px;
+  animation: landingUp 0.5s ease both;
+}
+
+.landing-logo-dot {
+  color: var(--grey-2);
+}
+
+.landing-tagline {
+  font-size: 14px;
+  font-weight: 300;
+  color: var(--grey-1);
+  letter-spacing: 0.2px;
+  margin-bottom: 56px;
+  max-width: 520px;
+  line-height: 1.6;
+  animation: landingUp 0.5s 0.08s ease both;
+}
+
+.landing-tagline-accent {
+  color: var(--navy);
+  font-weight: 500;
+}
+
+.landing-boxes {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1px;
+  background: var(--border);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  overflow: hidden;
+  width: 100%;
+  max-width: 640px;
+  animation: landingUp 0.5s 0.14s ease both;
+}
+
+.landing-box {
+  background: var(--white);
+  padding: 24px 26px;
+  text-align: left;
+  transition: background 0.15s;
+}
+
+.landing-box:hover {
+  background: var(--bg);
+}
+
+.landing-box-n {
+  font-family: 'DM Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 1px;
+  color: var(--grey-2);
+  margin-bottom: 14px;
+}
+
+.landing-box-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--navy);
+  margin-bottom: 5px;
+}
+
+.landing-box-desc {
+  font-size: 12px;
+  font-weight: 300;
+  color: var(--grey-1);
+  line-height: 1.6;
+}
+
+@keyframes landingUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 560px) {
+  .landing-hero {
+    padding: 48px 20px 40px;
+  }
+
+  .landing-boxes {
+    grid-template-columns: 1fr;
+  }
+}

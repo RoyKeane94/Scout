@@ -1,0 +1,52 @@
+/* Privacy policy page */
+.privacy-page {
+  max-width: 560px;
+  margin: 0 auto;
+  padding: 2rem 24px 3rem;
+}
+
+.privacy-inner {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 32px 28px;
+}
+
+.privacy-title {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 28px;
+  letter-spacing: 1px;
+  color: var(--navy);
+  margin: 0 0 4px 0;
+  line-height: 1.1;
+}
+
+.privacy-updated {
+  font-family: 'DM Mono', monospace;
+  font-size: var(--text-xs);
+  color: var(--grey-1);
+  margin: 0 0 24px 0;
+}
+
+.privacy-section {
+  margin-bottom: 20px;
+}
+
+.privacy-section:last-child {
+  margin-bottom: 0;
+}
+
+.privacy-section h2 {
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--navy);
+  margin: 0 0 8px 0;
+}
+
+.privacy-section p {
+  font-size: 13px;
+  font-weight: 300;
+  color: var(--grey-1);
+  line-height: 1.6;
+  margin: 0;
+}

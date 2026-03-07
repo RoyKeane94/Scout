@@ -37,13 +37,17 @@
 
 @media (max-width: 480px) {
   .auth-layout {
-    padding: 20px 16px;
+    padding: 20px 16px 32px;
     align-items: flex-start;
-    padding-top: 24px;
+    padding-top: 40px;
+  }
+
+  .auth-container {
+    margin-top: 24px;
   }
 
   .logo-block {
-    margin-bottom: 48px;
+    margin-bottom: 56px;
   }
 }
 

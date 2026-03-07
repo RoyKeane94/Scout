@@ -5,6 +5,7 @@ import AdminRoute from './components/AdminRoute';
 import Header from './components/Header';
 import Footer from './components/Footer';
 import Home from './pages/Home';
+import Privacy from './pages/Privacy';
 import RegisterOrg from './pages/RegisterOrg';
 import Join from './pages/Join';
 import Login from './pages/Login';
@@ -19,12 +20,13 @@ export default function App() {
       <BrowserRouter>
         <div className="app-shell">
           <Header />
-        <main className="app-main">
-          <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/register" element={<RegisterOrg />} />
-        <Route path="/join" element={<Join />} />
-        <Route path="/login" element={<Login />} />
+          <main className="app-main">
+            <Routes>
+              <Route path="/" element={<Home />} />
+              <Route path="/privacy" element={<Privacy />} />
+              <Route path="/register" element={<RegisterOrg />} />
+              <Route path="/join" element={<Join />} />
+              <Route path="/login" element={<Login />} />
         <Route
           path="/log"
           element={
@@ -49,12 +51,12 @@ export default function App() {
             </AdminRoute>
           }
         />
-        <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </main>
-        <Footer />
-      </div>
-    </BrowserRouter>
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </main>
+          <Footer />
+        </div>
+      </BrowserRouter>
     </AuthProvider>
   );
 }

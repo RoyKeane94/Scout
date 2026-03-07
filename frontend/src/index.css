@@ -3,7 +3,9 @@
 @import './styles/base.css';
 @import './styles/layout.css';
 @import './styles/components.css';
+@import './styles/pages/home.css';
 @import './styles/pages/auth.css';
+@import './styles/pages/privacy.css';
 @import './styles/pages/log.css';
 @import './styles/pages/admin.css';
 @import './styles/pages/dashboard.css';

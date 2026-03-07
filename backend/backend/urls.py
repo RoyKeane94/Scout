@@ -8,6 +8,7 @@ urlpatterns = [
     path('favicon.svg', views.favicon),
     path('', views.react_app),
     path('api/', include('scout_api.urls')),
+    path('privacy/', views.react_app),
     path('register/', views.react_app),
     path('join/', views.react_app),
     path('login/', views.react_app),
