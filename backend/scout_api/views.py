@@ -239,8 +239,14 @@ def sighting_photo(request, sighting_id):
         return Response({'detail': 'Not found'}, status=status.HTTP_404_NOT_FOUND)
     if not sighting.photo_b64:
         return Response({'detail': 'No photo'}, status=status.HTTP_404_NOT_FOUND)
+    # Strip whitespace/newlines that can break base64 decode (e.g. from JSON or DB)
+    b64_clean = (sighting.photo_b64 or '').replace('\n', '').replace('\r', '').replace(' ', '').strip()
+    if not b64_clean:
+        return Response({'detail': 'No photo'}, status=status.HTTP_404_NOT_FOUND)
     try:
-        raw = base64.b64decode(sighting.photo_b64, validate=True)
+        raw = base64.b64decode(b64_clean, validate=False)
     except Exception:
+        return Response({'detail': 'Invalid photo'}, status=status.HTTP_400_BAD_REQUEST)
+    if not raw:
         return Response({'detail': 'Invalid photo'}, status=status.HTTP_400_BAD_REQUEST)
     return HttpResponse(raw, content_type='image/jpeg')

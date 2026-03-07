@@ -565,7 +565,7 @@ export default function Dashboard() {
                 {drawerPhotoUrl ? (
                   <img src={drawerPhotoUrl} alt="" />
                 ) : selectedSighting.photo_b64 ? (
-                  <img src={`data:image/jpeg;base64,${selectedSighting.photo_b64}`} alt="" />
+                  <img src={`data:image/jpeg;base64,${String(selectedSighting.photo_b64).replace(/\s/g, '')}`} alt="" />
                 ) : (
                   <span className="dashboard-drawer-photo-placeholder">Photo</span>
                 )}
