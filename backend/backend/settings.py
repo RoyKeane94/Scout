@@ -56,18 +56,49 @@ TEMPLATES = [
     },
 ]
 
-if os.environ.get('DJANGO_ENV') == 'production':
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.postgresql',
-            'NAME': os.environ.get('DB_NAME', 'scout'),
-            'USER': os.environ.get('DB_USER', ''),
-            'PASSWORD': os.environ.get('DB_PASSWORD', ''),
-            'HOST': os.environ.get('DB_HOST', 'localhost'),
-            'PORT': os.environ.get('DB_PORT', '5432'),
+_django_env = (os.environ.get('DJANGO_ENV') or '').strip().lower()
+if _django_env == 'production':
+    # Production must use PostgreSQL. SQLite in a container is ephemeral — data is lost on every deploy.
+    # Accept Railway-style vars (PGHOST, etc.) or explicit DB_* or a single DATABASE_URL.
+    _database_url = os.environ.get('DATABASE_URL')
+    if _database_url and _database_url.startswith(('postgres://', 'postgresql://')):
+        import urllib.parse
+        _parsed = urllib.parse.urlparse(_database_url)
+        _db_name = _parsed.path.lstrip('/').split('?')[0] or 'scout'
+        _db_user = urllib.parse.unquote(_parsed.username or '')
+        _db_pass = urllib.parse.unquote(_parsed.password or '')
+        _db_host = _parsed.hostname or ''
+        _db_port = str(_parsed.port or 5432)
+        DATABASES = {
+            'default': {
+                'ENGINE': 'django.db.backends.postgresql',
+                'NAME': _db_name,
+                'USER': _db_user,
+                'PASSWORD': _db_pass,
+                'HOST': _db_host,
+                'PORT': _db_port,
+            }
         }
-    }
+    else:
+        _db_host = os.environ.get('DB_HOST') or os.environ.get('PGHOST')
+        if not _db_host:
+            raise RuntimeError(
+                'Production (DJANGO_ENV=production) requires a persistent database. '
+                'Set DATABASE_URL (postgres://...) or DB_HOST/PGHOST and DB_NAME, DB_USER, DB_PASSWORD, DB_PORT. '
+                'On Railway: add Postgres, then in your app service link it or add DATABASE_URL from the Postgres service.'
+            )
+        DATABASES = {
+            'default': {
+                'ENGINE': 'django.db.backends.postgresql',
+                'NAME': os.environ.get('DB_NAME') or os.environ.get('PGDATABASE', 'scout'),
+                'USER': os.environ.get('DB_USER') or os.environ.get('PGUSER', ''),
+                'PASSWORD': os.environ.get('DB_PASSWORD') or os.environ.get('PGPASSWORD', ''),
+                'HOST': _db_host,
+                'PORT': os.environ.get('DB_PORT') or os.environ.get('PGPORT', '5432'),
+            }
+        }
 else:
+    # Non-production only: SQLite for local development.
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.sqlite3',
