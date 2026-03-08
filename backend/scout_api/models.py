@@ -64,6 +64,18 @@ class FieldConfig(models.Model):
     display_order = models.PositiveIntegerField(default=0)
 
 
+class ErrorLog(models.Model):
+    """Client-side and runtime errors logged for debugging."""
+    message = models.TextField()
+    stack = models.TextField(blank=True, null=True)
+    source = models.CharField(max_length=50, blank=True)  # e.g. 'error_boundary', 'unhandled', 'api'
+    url = models.CharField(max_length=500, blank=True)
+    user_agent = models.TextField(blank=True, null=True)
+    user_id = models.IntegerField(null=True, blank=True)
+    extra = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+
 class Sighting(models.Model):
     organisation = models.ForeignKey(Organisation, on_delete=models.CASCADE)
     submitted_by = models.ForeignKey(User, on_delete=models.CASCADE)

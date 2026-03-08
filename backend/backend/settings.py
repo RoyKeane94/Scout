@@ -14,6 +14,7 @@ DEBUG = _debug in ('1', 'true', 'yes')
 ALLOWED_HOSTS = (os.environ.get('ALLOWED_HOSTS') or '*').strip().split(',')
 
 INSTALLED_APPS = [
+    'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',

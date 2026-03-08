@@ -8,7 +8,7 @@ from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import authenticate
 
-from .models import Organisation, User, Venue, Brand, FieldConfig, Sighting
+from .models import Organisation, User, Venue, Brand, FieldConfig, Sighting, ErrorLog
 from .serializers import (
     RegisterOrgSerializer, RegisterMemberSerializer, UserSerializer, UserListSerializer,
     VenueSerializer, VenueCreateSerializer, BrandSerializer, FieldConfigSerializer, FieldConfigBulkSerializer,
@@ -58,6 +58,28 @@ def login(request):
 def me(request):
     ser = UserSerializer(request.user)
     return Response(ser.data)
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def log_error(request):
+    """Log client-side errors for debugging. No auth required."""
+    data = request.data or {}
+    message = data.get('message', '') or str(data.get('error', 'Unknown error'))
+    if not message:
+        return Response({'detail': 'message required'}, status=status.HTTP_400_BAD_REQUEST)
+    user_id = request.user.id if request.user.is_authenticated else None
+    user_agent = request.META.get('HTTP_USER_AGENT', '')[:500] if request.META else ''
+    ErrorLog.objects.create(
+        message=message[:2000],
+        stack=(data.get('stack') or '')[:8000] or None,
+        source=data.get('source', '')[:50] or None,
+        url=(data.get('url') or request.build_absolute_uri() or '')[:500] or None,
+        user_agent=user_agent or None,
+        user_id=user_id,
+        extra=data.get('extra') or {},
+    )
+    return Response({'ok': True}, status=status.HTTP_201_CREATED)
 
 
 @api_view(['GET'])

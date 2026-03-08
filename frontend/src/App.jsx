@@ -2,6 +2,8 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import AdminRoute from './components/AdminRoute';
+import ErrorBoundary from './components/ErrorBoundary';
+import NotFound from './components/NotFound';
 import Header from './components/Header';
 import Footer from './components/Footer';
 import Home from './pages/Home';
@@ -12,16 +14,18 @@ import Login from './pages/Login';
 import Log from './pages/Log';
 import Dashboard from './pages/Dashboard';
 import Admin from './pages/Admin';
+import Error from './pages/Error';
 /* Styles loaded via index.css */
 
 export default function App() {
   return (
-    <AuthProvider>
-      <BrowserRouter>
-        <div className="app-shell">
-          <Header />
-          <main className="app-main">
-            <Routes>
+    <ErrorBoundary>
+      <AuthProvider>
+        <BrowserRouter>
+          <div className="app-shell">
+            <Header />
+            <main className="app-main">
+              <Routes>
               <Route path="/" element={<Home />} />
               <Route path="/privacy" element={<Privacy />} />
               <Route path="/register" element={<RegisterOrg />} />
@@ -51,12 +55,14 @@ export default function App() {
             </AdminRoute>
           }
         />
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
-          </main>
-          <Footer />
-        </div>
-      </BrowserRouter>
-    </AuthProvider>
+                <Route path="/error" element={<Error />} />
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </main>
+            <Footer />
+          </div>
+        </BrowserRouter>
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }
