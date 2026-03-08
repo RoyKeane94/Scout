@@ -1292,6 +1292,12 @@
   background: var(--white);
 }
 
+.dashboard-comp-pill.green {
+  background: var(--green-bg);
+  border-color: var(--green-border);
+  color: var(--green);
+}
+
 .dashboard-comp-gap-last { text-align: right; flex-shrink: 0; }
 .dashboard-comp-gap-who { font-size: var(--text-xs); color: var(--grey-1); margin-top: 2px; }
 

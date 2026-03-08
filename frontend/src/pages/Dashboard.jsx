@@ -153,6 +153,28 @@ export default function Dashboard() {
 
   const ownBrandName = useMemo(() => brands.find((b) => b.is_own_brand)?.name || 'Your brand', [brands]);
 
+  const ownBrandSightings = useMemo(() => sightings.filter((s) => s.brand?.is_own_brand), [sightings]);
+
+  const ownBrandVenues = useMemo(() => {
+    const byVenue = new Map();
+    ownBrandSightings.forEach((s) => {
+      if (!s.venue) return;
+      const key = s.venue.id || s.venue.name;
+      if (!byVenue.has(key)) {
+        byVenue.set(key, {
+          venue: { id: s.venue.id, name: s.venue.name, venue_type: s.venue.venue_type },
+          sightings: [],
+        });
+      }
+      byVenue.get(key).sightings.push(s);
+    });
+    return Array.from(byVenue.values()).sort((a, b) => {
+      const aLatest = a.sightings.reduce((m, s) => (new Date(s.created_at) > new Date(m.created_at) ? s : m), a.sightings[0]);
+      const bLatest = b.sightings.reduce((m, s) => (new Date(s.created_at) > new Date(m.created_at) ? s : m), b.sightings[0]);
+      return new Date(bLatest?.created_at || 0) - new Date(aLatest?.created_at || 0);
+    });
+  }, [ownBrandSightings]);
+
   const filteredSightings = useMemo(() => {
     if (filter === 'all') return sightings;
     if (filter === 'own') return sightings.filter((s) => s.brand?.is_own_brand);
@@ -333,6 +355,13 @@ export default function Dashboard() {
             onClick={() => { setPage('competitors'); closeDrawer(); }}
           >
             Competitors
+          </button>
+          <button
+            type="button"
+            className={`dashboard-view-tab ${page === 'company' ? 'active' : ''}`}
+            onClick={() => { setPage('company'); closeDrawer(); }}
+          >
+            {ownBrandName}
           </button>
         </div>
         {page === 'sightings' && (
@@ -530,7 +559,6 @@ export default function Dashboard() {
                     <div className="dashboard-comp-brand-header">
                       <div className="dashboard-comp-brand-name">{b.name}</div>
                       <div className="dashboard-comp-brand-meta">
-                        {b.activePromo && <span className="dashboard-comp-promo-flag">{b.activePromo}</span>}
                         <span className="dashboard-comp-sightings-count">{b.count} sightings</span>
                       </div>
                     </div>
@@ -593,6 +621,109 @@ export default function Dashboard() {
                         </tr>
                       );
                     })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {page === 'company' && (
+            <div className="dashboard-company-wrap">
+              <div className="dashboard-comp-stats">
+                <div className="dashboard-stat-card">
+                  <div className="dashboard-stat-num">{ownBrandSightings.length}</div>
+                  <div className="dashboard-stat-label">Total sightings</div>
+                  <div className="dashboard-stat-sub">Your brand in the field</div>
+                </div>
+                <div className="dashboard-stat-card">
+                  <div className="dashboard-stat-num">{ownBrandVenues.length}</div>
+                  <div className="dashboard-stat-label">Venues stocking {ownBrandName}</div>
+                </div>
+                <div className="dashboard-stat-card">
+                  <div className="dashboard-stat-num">
+                    {ownBrandSightings.filter((s) => isActivePromo(s.data?.promo)).length}
+                  </div>
+                  <div className="dashboard-stat-label">Active promos logged</div>
+                </div>
+              </div>
+
+              {ownBrandVenues.length > 0 && (
+                <>
+                  <div className="dashboard-comp-section-label">Venues by {ownBrandName}</div>
+                  <div className="dashboard-comp-gap-table">
+                    <div className="dashboard-comp-gap-header">
+                      <div className="dashboard-comp-gap-title">Where you're stocked</div>
+                      <div className="dashboard-comp-gap-sub">Sorted by most recent sighting</div>
+                    </div>
+                    {ownBrandVenues.map((g, i) => (
+                      <div key={i} className="dashboard-comp-gap-row">
+                        <div className="dashboard-comp-gap-left">
+                          <div className="dashboard-comp-gap-venue-name">{g.venue.name}</div>
+                          <div className="dashboard-comp-gap-venue-type">
+                            {g.venue.venue_type ? VENUE_TYPE_LABELS[g.venue.venue_type] : ''}
+                          </div>
+                        </div>
+                        <div className="dashboard-comp-gap-pills">
+                          <span className="dashboard-comp-pill green">{g.sightings.length} sighting{g.sightings.length !== 1 ? 's' : ''}</span>
+                        </div>
+                        <div className="dashboard-comp-gap-last">
+                          <div className="dashboard-cell-time">
+                            {formatTime(g.sightings.reduce((m, s) => (new Date(s.created_at) > new Date(m.created_at) ? s : m), g.sightings[0])?.created_at)}
+                          </div>
+                          <div className="dashboard-comp-gap-who">
+                            {g.sightings.reduce((m, s) => (new Date(s.created_at) > new Date(m.created_at) ? s : m), g.sightings[0])?.submitted_by?.name || '—'}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+
+              <div className="dashboard-comp-section-label">Recent sightings</div>
+              <div className="dashboard-comp-table-wrap">
+                <table className="dashboard-comp-table">
+                  <thead>
+                    <tr>
+                      <th>Venue</th>
+                      <th>Placement</th>
+                      <th>Activity</th>
+                      <th>Price</th>
+                      <th>Logged by</th>
+                      <th>When</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {ownBrandSightings
+                      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+                      .map((s) => {
+                        const d = s.data || {};
+                        const venueType = s.venue?.venue_type ? VENUE_TYPE_LABELS[s.venue.venue_type] : '';
+                        return (
+                          <tr key={s.id} onClick={() => openDrawer(s.id)}>
+                            <td>
+                              <div className="dashboard-venue-name">{s.venue?.name || '—'}</div>
+                              <div className="dashboard-venue-type">{venueType}</div>
+                            </td>
+                            <td>{d.placement || '—'}</td>
+                            <td>
+                              <div className="dashboard-cell-chips">
+                                {d.obs && d.obs !== '—' && (
+                                  <span className="dashboard-chip green">{d.obs}</span>
+                                )}
+                                {isActivePromo(d.promo) ? (
+                                  <span className="dashboard-chip amber">{d.promo}</span>
+                                ) : d.promo && String(d.promo).trim().toLowerCase() === 'full price' ? (
+                                  <span className="dashboard-chip dashboard-chip-neutral">Full price</span>
+                                ) : null}
+                              </div>
+                            </td>
+                            <td className="dashboard-cell-price">{d.price != null && d.price !== '' ? d.price : '—'}</td>
+                            <td>{s.submitted_by?.name || s.submitted_by?.email || '—'}</td>
+                            <td className="dashboard-cell-time">{formatTime(s.created_at)}</td>
+                          </tr>
+                        );
+                      })}
                   </tbody>
                 </table>
               </div>
