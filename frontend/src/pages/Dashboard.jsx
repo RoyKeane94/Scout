@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import api from '../api/axios';
+import { useAuth } from '../context/AuthContext';
 
 const VENUE_TYPE_LABELS = {
   cafe: 'Cafe', pub: 'Pub', bar: 'Bar', deli: 'Deli', gym: 'Gym',
@@ -152,6 +153,7 @@ export default function Dashboard() {
   }, [selectedId, drawerOpen]);
 
   const ownBrandName = useMemo(() => brands.find((b) => b.is_own_brand)?.name || 'Your brand', [brands]);
+  const { user } = useAuth();
 
   const ownBrandSightings = useMemo(() => sightings.filter((s) => s.brand?.is_own_brand), [sightings]);
 
@@ -629,7 +631,7 @@ export default function Dashboard() {
 
           {page === 'company' && (
             <div className="dashboard-company-wrap">
-              <div className="dashboard-comp-stats">
+              <div className="dashboard-comp-stats dashboard-comp-stats-company">
                 <div className="dashboard-stat-card">
                   <div className="dashboard-stat-num">{ownBrandSightings.length}</div>
                   <div className="dashboard-stat-label">Total sightings</div>
@@ -638,6 +640,11 @@ export default function Dashboard() {
                 <div className="dashboard-stat-card">
                   <div className="dashboard-stat-num">{ownBrandVenues.length}</div>
                   <div className="dashboard-stat-label">Venues stocking {ownBrandName}</div>
+                </div>
+                <div className="dashboard-stat-card">
+                  <div className="dashboard-stat-num">{user?.scout_count ?? '—'}</div>
+                  <div className="dashboard-stat-label">Number of scouts</div>
+                  <div className="dashboard-stat-sub">People signed in with the brand</div>
                 </div>
                 <div className="dashboard-stat-card">
                   <div className="dashboard-stat-num">

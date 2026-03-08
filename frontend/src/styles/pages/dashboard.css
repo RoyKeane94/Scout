@@ -1177,6 +1177,53 @@
   margin-bottom: 20px;
 }
 
+/* Company dashboard */
+
+.dashboard-comp-stats-company {
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.dashboard-company-wrap .dashboard-stat-card {
+  padding: 12px 14px;
+}
+
+.dashboard-company-wrap .dashboard-stat-num {
+  font-size: 32px;
+}
+
+.dashboard-company-wrap .dashboard-stat-label {
+  font-size: 11px;
+  margin-top: 2px;
+}
+
+.dashboard-company-wrap .dashboard-stat-sub {
+  font-size: 8px;
+  margin-top: 4px;
+}
+
+.dashboard-company-wrap .dashboard-comp-gap-table {
+  margin-bottom: 16px;
+}
+
+.dashboard-company-wrap .dashboard-comp-gap-header {
+  padding: 10px 14px;
+}
+
+.dashboard-company-wrap .dashboard-comp-gap-row {
+  padding: 10px 14px;
+  gap: 10px;
+}
+
+.dashboard-company-wrap .dashboard-comp-gap-venue-name {
+  font-size: 13px;
+}
+
+.dashboard-company-wrap .dashboard-comp-table-wrap {
+  margin-bottom: 16px;
+}
+
 .dashboard-stat-card {
   background: var(--white);
   border: 1px solid var(--border);
@@ -1724,6 +1771,10 @@
   .dashboard-comp-stats {
     grid-template-columns: 1fr 1fr;
     gap: 8px;
+  }
+
+  .dashboard-comp-stats-company {
+    grid-template-columns: 1fr 1fr;
   }
 
   .dashboard-stat-card {

@@ -56,8 +56,12 @@ def login(request):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def me(request):
-    ser = UserSerializer(request.user)
-    return Response(ser.data)
+    data = UserSerializer(request.user).data
+    if request.user.organisation_id:
+        data['scout_count'] = User.objects.filter(organisation_id=request.user.organisation_id).count()
+    else:
+        data['scout_count'] = 0
+    return Response(data)
 
 
 @api_view(['POST'])
