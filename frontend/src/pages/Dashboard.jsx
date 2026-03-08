@@ -593,7 +593,7 @@ export default function Dashboard() {
                       <th>Placement</th>
                       <th>Promo</th>
                       <th>Logged by</th>
-                      <th>When</th>
+                      <th>When</th> 
                     </tr>
                   </thead>
                   <tbody>
