@@ -22,6 +22,23 @@ function isActivePromo(p) {
 const VENUE_TYPES = ['cafe', 'pub', 'bar', 'deli', 'gym', 'restaurant', 'shop', 'other'];
 const VENUE_TYPE_LABELS = { cafe: 'Cafe', pub: 'Pub', bar: 'Bar', deli: 'Deli', gym: 'Gym', restaurant: 'Restaurant', shop: 'Shop', other: 'Other' };
 
+/** Format Nominatim reverse geocode result: shop name + town + postcode, or just town + postcode. */
+function formatShortAddress(data) {
+  const addr = data?.address;
+  if (!addr) return data?.display_name || null;
+
+  const locality = addr.suburb || addr.village || addr.town || addr.city || addr.municipality || addr.locality || addr.hamlet;
+  const postcode = addr.postcode;
+  const localityPostcode = locality && postcode ? `${locality}, ${postcode}` : locality || postcode;
+
+  const name = data.name;
+  if (name && typeof name === 'string' && name.trim() && localityPostcode) {
+    return `${name.trim()}, ${localityPostcode}`;
+  }
+  if (name && typeof name === 'string' && name.trim()) return name.trim();
+  return localityPostcode || data?.display_name || null;
+}
+
 export default function Log() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -108,12 +125,14 @@ export default function Log() {
     setGeoAddressLoading(true);
     const timer = setTimeout(() => {
       fetch(
-        `https://nominatim.openstreetmap.org/reverse?lat=${geoLat}&lon=${geoLng}&format=json`,
+        `https://nominatim.openstreetmap.org/reverse?lat=${geoLat}&lon=${geoLng}&format=json&addressdetails=1`,
         { headers: { 'User-Agent': 'Scout/1.0 (field-logging-app)' } }
       )
         .then((res) => res.json())
         .then((data) => {
-          if (!cancelled && data?.display_name) setGeoAddress(data.display_name);
+          if (cancelled || !data) return;
+          const short = formatShortAddress(data);
+          if (short) setGeoAddress(short);
         })
         .catch(() => {})
         .finally(() => {
