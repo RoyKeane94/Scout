@@ -14,7 +14,7 @@ export default function Header() {
           {hasToken ? (
             <>
               <NavLink to="/log" className={({ isActive }) => isActive ? 'header-link active' : 'header-link'}>
-                Sightings
+                Log
               </NavLink>
               <NavLink to="/dashboard" className={({ isActive }) => `header-link header-link-dashboard ${isActive ? 'active' : ''}`}>
                 Dashboard

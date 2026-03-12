@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth.password_validation import validate_password
-from .models import Organisation, User, Venue, Brand, FieldConfig, Sighting
+from .models import Organisation, User, Venue, Brand, FieldConfig, Sighting, Gap
 
 
 class RegisterOrgSerializer(serializers.Serializer):
@@ -138,6 +138,57 @@ class FieldConfigBulkSerializer(serializers.Serializer):
 class BrandBulkSerializer(serializers.Serializer):
     name = serializers.CharField()
     is_own_brand = serializers.BooleanField()
+
+
+class GapSerializer(serializers.ModelSerializer):
+    venue = VenueSerializer(read_only=True)
+    submitted_by = UserListSerializer(read_only=True)
+
+    class Meta:
+        model = Gap
+        fields = ['id', 'venue', 'lat', 'lng', 'notes', 'created_at', 'submitted_by']
+
+
+class GapCreateSerializer(serializers.Serializer):
+    lat = serializers.FloatField(required=False, allow_null=True)
+    lng = serializers.FloatField(required=False, allow_null=True)
+    venue_id = serializers.IntegerField(required=False, allow_null=True)
+    venue_name = serializers.CharField(max_length=255, required=False, allow_blank=True)
+    venue_type = serializers.ChoiceField(choices=Venue.VENUE_TYPES, required=False)
+    notes = serializers.CharField(required=False, allow_blank=True, default='')
+
+    def validate(self, data):
+        if data.get('venue_id') is not None:
+            return data
+        if data.get('venue_name') and data.get('venue_name').strip() and data.get('venue_type'):
+            return data
+        raise serializers.ValidationError('Provide venue_id or venue_name and venue_type')
+
+    def create(self, validated_data):
+        from decimal import Decimal
+        org = self.context['request'].user.organisation
+        user = self.context['request'].user
+        venue_id = validated_data.get('venue_id')
+        if venue_id is not None:
+            venue = Venue.objects.get(pk=venue_id, organisation=org)
+        else:
+            venue = Venue.objects.create(
+                organisation=org,
+                name=validated_data['venue_name'].strip(),
+                venue_type=validated_data['venue_type'],
+                lat=Decimal(str(validated_data['lat'])) if validated_data.get('lat') is not None else None,
+                lng=Decimal(str(validated_data['lng'])) if validated_data.get('lng') is not None else None,
+            )
+        lat = validated_data.get('lat')
+        lng = validated_data.get('lng')
+        return Gap.objects.create(
+            organisation=org,
+            submitted_by=user,
+            venue=venue,
+            lat=Decimal(str(lat)) if lat is not None else None,
+            lng=Decimal(str(lng)) if lng is not None else None,
+            notes=(validated_data.get('notes') or '').strip(),
+        )
 
 
 class SightingSerializer(serializers.ModelSerializer):

@@ -76,6 +76,17 @@ class ErrorLog(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
 
+class Gap(models.Model):
+    """A venue where there are no direct competitors (gap opportunity)."""
+    organisation = models.ForeignKey(Organisation, on_delete=models.CASCADE)
+    submitted_by = models.ForeignKey(User, on_delete=models.CASCADE)
+    venue = models.ForeignKey(Venue, on_delete=models.CASCADE)
+    lat = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+    lng = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+    notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+
 class Sighting(models.Model):
     organisation = models.ForeignKey(Organisation, on_delete=models.CASCADE)
     submitted_by = models.ForeignKey(User, on_delete=models.CASCADE)

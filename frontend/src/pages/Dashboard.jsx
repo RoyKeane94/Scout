@@ -57,6 +57,7 @@ function formatDateGroup(createdAt) {
 export default function Dashboard() {
   const [sightings, setSightings] = useState([]);
   const [brands, setBrands] = useState([]);
+  const [gaps, setGaps] = useState([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState('sightings');
   const [drawerPhotoUrl, setDrawerPhotoUrl] = useState(null);
@@ -73,6 +74,7 @@ export default function Dashboard() {
     Promise.all([
       api.get('/sightings/').then((res) => setSightings(res.data || [])).catch(() => setSightings([])),
       api.get('/config/brands/').then((res) => setBrands(res.data || [])).catch(() => setBrands([])),
+      api.get('/gaps/').then((res) => setGaps(res.data || [])).catch(() => setGaps([])),
     ]).finally(() => setLoading(false));
   }, []);
 
@@ -271,6 +273,12 @@ export default function Dashboard() {
     });
   }, [competitorSightings, venuesWithOwnBrand]);
 
+  const gapsSorted = useMemo(
+    () => [...gaps].sort((a, b) => new Date(b.created_at) - new Date(a.created_at)),
+    [gaps]
+  );
+  const [expandedGapId, setExpandedGapId] = useState(null);
+
   const submitterCounts = useMemo(() => {
     const counts = {};
     sightings.forEach((s) => {
@@ -360,6 +368,13 @@ export default function Dashboard() {
           </button>
           <button
             type="button"
+            className={`dashboard-view-tab ${page === 'gaps' ? 'active' : ''}`}
+            onClick={() => { setPage('gaps'); closeDrawer(); }}
+          >
+            Gaps
+          </button>
+          <button
+            type="button"
             className={`dashboard-view-tab ${page === 'company' ? 'active' : ''}`}
             onClick={() => { setPage('company'); closeDrawer(); }}
           >
@@ -403,12 +418,13 @@ export default function Dashboard() {
                     {filteredSightings.length} sighting{filteredSightings.length !== 1 ? 's' : ''}
                   </span>
                   <span className="dashboard-sightings-last">
-                    {lastSighting
-                      ? `Last: ${formatDateGroup(lastSighting.created_at)} · ${formatTime(lastSighting.created_at)}`
-                      : 'No sightings yet'}
+                    {lastSighting ? `Last: ${formatDateGroup(lastSighting.created_at)}` : 'No sightings yet'}
                   </span>
                 </div>
-                <Link to="/log" className="dashboard-sightings-log-btn">Log a sighting</Link>
+                <div className="dashboard-sightings-log-actions">
+                  <Link to="/log/sighting" className="dashboard-sightings-log-btn">Log a sighting</Link>
+                  <Link to="/log/gap" className="dashboard-sightings-log-btn dashboard-sightings-log-btn-gap">Log a gap</Link>
+                </div>
               </div>
               <div className="dashboard-table-wrap">
                 <table className="dashboard-sightings-table">
@@ -452,8 +468,15 @@ export default function Dashboard() {
                                 </div>
                               </td>
                               <td className="dashboard-cell-venue">
-                                <div className="dashboard-venue-name">{s.venue?.name || '—'}</div>
-                                <div className="dashboard-venue-type">{venueType}</div>
+                                <div className="dashboard-venue-name">
+                                  {s.venue?.name || '—'}
+                                  {venueType && (
+                                    <span className="dashboard-comp-gap-venue-type-inline">
+                                      {' '}
+                                      ({venueType})
+                                    </span>
+                                  )}
+                                </div>
                               </td>
                               <td style={{ color: 'var(--grey-1)', fontSize: 13 }}>{placement}</td>
                               <td>
@@ -503,12 +526,10 @@ export default function Dashboard() {
                 <div className="dashboard-stat-card">
                   <div className="dashboard-stat-num">{gapVenues.length}</div>
                   <div className="dashboard-stat-label">Venues stocking competitors</div>
-                  <div className="dashboard-stat-sub">Gap opportunities</div>
                 </div>
                 <div className="dashboard-stat-card">
                   <div className="dashboard-stat-num">{competitorSightings.length}</div>
                   <div className="dashboard-stat-label">Competitor sightings this month</div>
-                  <div className="dashboard-stat-sub">Across {competitorBrands.length} brand{competitorBrands.length !== 1 ? 's' : ''}</div>
                 </div>
                 <div className="dashboard-stat-card">
                   <div className="dashboard-stat-num">{activePromosCount}</div>
@@ -517,26 +538,29 @@ export default function Dashboard() {
                 <div className="dashboard-stat-card">
                   <div className="dashboard-stat-num">{headToHeadCount}</div>
                   <div className="dashboard-stat-label">Venues where you're also stocked</div>
-                  <div className="dashboard-stat-sub">Head-to-head</div>
                 </div>
               </div>
 
               {gapVenues.length > 0 && (
                 <>
                   <div className="dashboard-comp-section-label">
-                    Gap venues <span className="dashboard-comp-label-count">{gapVenues.length}</span>
+                    Contested venues <span className="dashboard-comp-label-count">{gapVenues.length}</span>
                   </div>
                   <div className="dashboard-comp-gap-table">
                     <div className="dashboard-comp-gap-header">
                       <div className="dashboard-comp-gap-title">Venues your competitors are in but you're not</div>
-                      <div className="dashboard-comp-gap-sub">Sorted by most recent</div>
                     </div>
                     {gapVenues.map((g, i) => (
                       <div key={i} className="dashboard-comp-gap-row">
                         <div className="dashboard-comp-gap-left">
-                          <div className="dashboard-comp-gap-venue-name">{g.venue.name}</div>
-                          <div className="dashboard-comp-gap-venue-type">
-                            {g.venue.venue_type ? VENUE_TYPE_LABELS[g.venue.venue_type] : ''}
+                          <div className="dashboard-comp-gap-venue-name">
+                            {g.venue.name}
+                            {g.venue.venue_type && (
+                              <span className="dashboard-comp-gap-venue-type-inline">
+                                {' '}
+                                ({VENUE_TYPE_LABELS[g.venue.venue_type] || g.venue.venue_type})
+                              </span>
+                            )}
                           </div>
                         </div>
                         <div className="dashboard-comp-gap-pills">
@@ -567,15 +591,22 @@ export default function Dashboard() {
                     {b.venues.map((v, i) => (
                       <div key={i} className="dashboard-comp-venue-row">
                         <div className="dashboard-comp-venue-left">
-                          <div className="dashboard-comp-venue-name">{v.name}</div>
-                          <div className="dashboard-comp-venue-type">{VENUE_TYPE_LABELS[v.type] || v.type || ''}</div>
+                          <div className="dashboard-comp-venue-name">
+                            {v.name}
+                            {(v.type && (VENUE_TYPE_LABELS[v.type] || v.type)) && (
+                              <span className="dashboard-comp-gap-venue-type-inline">
+                                {' '}
+                                ({VENUE_TYPE_LABELS[v.type] || v.type})
+                              </span>
+                            )}
+                          </div>
                         </div>
                         <div className="dashboard-comp-venue-right">
                           {isActivePromo(v.promo) && (
                             <span className="dashboard-chip amber">{v.promo}</span>
                           )}
-                          {v.isGap && <span className="dashboard-chip">Gap</span>}
-                          {!v.isGap && <span className="dashboard-chip green">You're here too</span>}
+                          {v.isGap && <span className="dashboard-chip orange">Contested</span>}
+                          {!v.isGap && <span className="dashboard-chip green">Gap</span>}
                         </div>
                       </div>
                     ))}
@@ -605,9 +636,14 @@ export default function Dashboard() {
                             <div className="dashboard-td-dot-name">{s.brand?.name || '—'}</div>
                           </td>
                           <td>
-                            <div className="dashboard-venue-name">{s.venue?.name || '—'}</div>
-                            <div className="dashboard-venue-type">
-                              {s.venue?.venue_type ? VENUE_TYPE_LABELS[s.venue.venue_type] : ''}
+                            <div className="dashboard-venue-name">
+                              {s.venue?.name || '—'}
+                              {s.venue?.venue_type && (
+                                <span className="dashboard-comp-gap-venue-type-inline">
+                                  {' '}
+                                  ({VENUE_TYPE_LABELS[s.venue.venue_type] || s.venue.venue_type})
+                                </span>
+                              )}
                             </div>
                           </td>
                           <td>{d.placement || '—'}</td>
@@ -629,13 +665,66 @@ export default function Dashboard() {
             </div>
           )}
 
+          {page === 'gaps' && (
+            <div className="dashboard-comp-wrap">
+              <div className="dashboard-comp-stats">
+                <div className="dashboard-stat-card">
+                  <div className="dashboard-stat-num">{gapsSorted.length}</div>
+                  <div className="dashboard-stat-label">Gaps logged</div>
+                </div>
+              </div>
+
+              <div className="dashboard-comp-gap-table">
+                <div className="dashboard-comp-gap-header">
+                  <div className="dashboard-comp-gap-title">Gaps by venue</div>
+                </div>
+                {gapsSorted.map((g) => (
+                  <div key={g.id} className="dashboard-gap-row-wrap">
+                    <div className="dashboard-comp-gap-row">
+                      <div className="dashboard-comp-gap-left">
+                        <div className="dashboard-comp-gap-venue-name">
+                          {g.venue?.name || '—'}
+                          {g.venue?.venue_type && (
+                            <span className="dashboard-comp-gap-venue-type-inline">
+                              {' '}
+                              ({VENUE_TYPE_LABELS[g.venue.venue_type] || g.venue.venue_type})
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="dashboard-comp-gap-last">
+                        <div className="dashboard-comp-gap-who">
+                          {g.submitted_by?.name || g.submitted_by?.email || '—'}
+                        </div>
+                        <div className="dashboard-cell-time">{formatTime(g.created_at)}</div>
+                        {g.notes && g.notes.trim() && (
+                          <button
+                            type="button"
+                            className="dashboard-gap-notes-toggle"
+                            onClick={() => setExpandedGapId(expandedGapId === g.id ? null : g.id)}
+                          >
+                            {expandedGapId === g.id ? 'Hide notes' : 'See notes'}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                    {expandedGapId === g.id && g.notes && g.notes.trim() && (
+                      <div className="dashboard-gap-notes">
+                        {g.notes}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {page === 'company' && (
             <div className="dashboard-company-wrap">
               <div className="dashboard-comp-stats dashboard-comp-stats-company">
                 <div className="dashboard-stat-card">
                   <div className="dashboard-stat-num">{ownBrandSightings.length}</div>
                   <div className="dashboard-stat-label">Total sightings</div>
-                  <div className="dashboard-stat-sub">Your brand in the field</div>
                 </div>
                 <div className="dashboard-stat-card">
                   <div className="dashboard-stat-num">{ownBrandVenues.length}</div>
@@ -644,7 +733,6 @@ export default function Dashboard() {
                 <div className="dashboard-stat-card">
                   <div className="dashboard-stat-num">{user?.scout_count ?? '—'}</div>
                   <div className="dashboard-stat-label">Number of scouts</div>
-                  <div className="dashboard-stat-sub">People signed in with the brand</div>
                 </div>
                 <div className="dashboard-stat-card">
                   <div className="dashboard-stat-num">
@@ -709,8 +797,15 @@ export default function Dashboard() {
                         return (
                           <tr key={s.id} onClick={() => openDrawer(s.id)}>
                             <td>
-                              <div className="dashboard-venue-name">{s.venue?.name || '—'}</div>
-                              <div className="dashboard-venue-type">{venueType}</div>
+                              <div className="dashboard-venue-name">
+                                {s.venue?.name || '—'}
+                                {venueType && (
+                                  <span className="dashboard-comp-gap-venue-type-inline">
+                                    {' '}
+                                    ({venueType})
+                                  </span>
+                                )}
+                              </div>
                             </td>
                             <td>{d.placement || '—'}</td>
                             <td>

@@ -11,7 +11,9 @@ import Privacy from './pages/Privacy';
 import RegisterOrg from './pages/RegisterOrg';
 import Join from './pages/Join';
 import Login from './pages/Login';
+import LogChoice from './pages/LogChoice';
 import Log from './pages/Log';
+import LogGap from './pages/LogGap';
 import Dashboard from './pages/Dashboard';
 import Admin from './pages/Admin';
 import Error from './pages/Error';
@@ -35,7 +37,23 @@ export default function App() {
           path="/log"
           element={
             <ProtectedRoute>
+              <LogChoice />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/log/sighting"
+          element={
+            <ProtectedRoute>
               <Log />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/log/gap"
+          element={
+            <ProtectedRoute>
+              <LogGap />
             </ProtectedRoute>
           }
         />

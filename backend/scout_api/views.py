@@ -8,11 +8,12 @@ from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import authenticate
 
-from .models import Organisation, User, Venue, Brand, FieldConfig, Sighting, ErrorLog
+from .models import Organisation, User, Venue, Brand, FieldConfig, Sighting, ErrorLog, Gap
 from .serializers import (
     RegisterOrgSerializer, RegisterMemberSerializer, UserSerializer, UserListSerializer,
     VenueSerializer, VenueCreateSerializer, BrandSerializer, FieldConfigSerializer, FieldConfigBulkSerializer,
-    BrandBulkSerializer, SightingSerializer, SightingCreateSerializer, SightingUpdateSerializer
+    BrandBulkSerializer, SightingSerializer, SightingCreateSerializer, SightingUpdateSerializer,
+    GapSerializer, GapCreateSerializer,
 )
 
 
@@ -306,3 +307,22 @@ def sighting_photo(request, sighting_id):
     if not raw:
         return Response({'detail': 'Invalid photo'}, status=status.HTTP_400_BAD_REQUEST)
     return HttpResponse(raw, content_type='image/jpeg')
+
+
+@api_view(['GET', 'POST'])
+@permission_classes([IsAuthenticated])
+def gap_list(request):
+    """List gaps for the org, or create a new gap (venue from location or venue_id)."""
+    org = request.user.organisation
+    if not org:
+        return Response({'detail': 'No organisation'}, status=status.HTTP_400_BAD_REQUEST)
+
+    if request.method == 'GET':
+        gaps = Gap.objects.filter(organisation=org).select_related('venue', 'submitted_by').order_by('-created_at')
+        return Response(GapSerializer(gaps, many=True).data)
+
+    ser = GapCreateSerializer(data=request.data, context={'request': request})
+    if not ser.is_valid():
+        return Response(ser.errors, status=status.HTTP_400_BAD_REQUEST)
+    gap = ser.save()
+    return Response(GapSerializer(gap).data, status=status.HTTP_201_CREATED)

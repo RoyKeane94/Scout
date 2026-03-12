@@ -221,8 +221,13 @@ export default function Admin() {
               <div key={i} className={`admin-slot-dot ${i < activeCount ? 'filled' : 'empty'}`} />
             ))}
           </div>
-          <span className="admin-slot-text">{activeCount} of {maxActive} fields active</span>
+          <span className="admin-slot-text">
+            {activeCount} of {maxActive} fields active
+          </span>
         </div>
+        <p className="admin-slot-note">
+          Every additional field reduces how often your team logs — we recommend 3.
+        </p>
 
         <div id="field-list">
           {fieldDraft.map((f) => (

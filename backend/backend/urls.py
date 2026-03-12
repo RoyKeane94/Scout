@@ -16,6 +16,8 @@ urlpatterns = [
     path('login/', views.react_app),
     path('error/', views.react_app),
     path('log/', views.react_app),
+    path('log/sighting/', views.react_app),
+    path('log/gap/', views.react_app),
     path('dashboard/', views.react_app),
     path('admin/', views.react_app),
     path('assets/<path:path>', serve, {'document_root': settings.FRONTEND_DIST / 'assets'}),
