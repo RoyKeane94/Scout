@@ -160,8 +160,15 @@ export default function Log() {
   };
 
   useEffect(() => {
-    getGeo();
-  }, []);
+    if (!editSighting) {
+      getGeo();
+    } else {
+      // For edits, initialise geo state from existing sighting and don't refresh coordinates.
+      setGeoLoading(false);
+      setGeoLat(editSighting.lat != null ? Number(editSighting.lat) : null);
+      setGeoLng(editSighting.lng != null ? Number(editSighting.lng) : null);
+    }
+  }, [editSighting]);
 
   const handlePhoto = (e) => {
     const file = e.target.files?.[0];
