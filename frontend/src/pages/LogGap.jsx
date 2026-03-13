@@ -135,9 +135,6 @@ export default function LogGap() {
             <button type="button" className="log-btn-again" onClick={() => navigate('/log-gap', { replace: true })}>
               Log another gap
             </button>
-            <button type="button" className="log-btn-again log-btn-again-secondary" onClick={() => navigate('/dashboard')} style={{ marginTop: 8 }}>
-              Back to dashboard
-            </button>
           </div>
         </div>
       </div>
