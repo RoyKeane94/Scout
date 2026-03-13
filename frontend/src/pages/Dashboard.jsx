@@ -323,7 +323,7 @@ export default function Dashboard() {
   const handleEditSighting = () => {
     if (!selectedSighting) return;
     closeDrawer();
-    navigate('/log', { state: { editSighting: selectedSighting } });
+    navigate('/log/sighting', { state: { editSighting: selectedSighting } });
   };
 
   const handleDeleteSighting = () => {
