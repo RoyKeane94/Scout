@@ -55,6 +55,8 @@ export default function Log() {
   const [geoRefreshed, setGeoRefreshed] = useState(false);
   const [geoAddress, setGeoAddress] = useState(null);
   const [geoAddressLoading, setGeoAddressLoading] = useState(false);
+  const [geoBusinessName, setGeoBusinessName] = useState(null);
+  const [venueAutoFromGeoDone, setVenueAutoFromGeoDone] = useState(false);
 
   // Brand add
   const [brandAdding, setBrandAdding] = useState(false);
@@ -115,6 +117,8 @@ export default function Log() {
         .then((res) => res.json())
         .then((data) => {
           if (cancelled || !data) return;
+          const business = (data.name || '').trim();
+          setGeoBusinessName(business || null);
           const short = formatShortAddress(data);
           if (short) setGeoAddress(short);
         })
@@ -214,6 +218,27 @@ export default function Log() {
   };
 
   const updateData = (key, val) => setData((d) => ({ ...d, [key]: val }));
+
+  // When we have a business name from live location, try to auto-select or prefill venue once.
+  useEffect(() => {
+    if (venueAutoFromGeoDone) return;
+    if (!geoBusinessName) return;
+    if (!venues || venues.length === 0) return;
+
+    const lower = geoBusinessName.toLowerCase();
+    const match = venues.find((v) => (v.name || '').trim().toLowerCase() === lower);
+    if (match) {
+      setVenueId(String(match.id));
+      setVenueAdding(false);
+      setVenueAutoFromGeoDone(true);
+      return;
+    }
+
+    // No existing venue - prefill add-venue form and let user confirm.
+    setVenueAdding(true);
+    setNewVenueName((prev) => prev || geoBusinessName);
+    setVenueAutoFromGeoDone(true);
+  }, [geoBusinessName, venues, venueAutoFromGeoDone]);
 
   const toggleChip = (key, opt) => {
     const arr = data[key] || [];
