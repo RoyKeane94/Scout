@@ -57,9 +57,11 @@ def login(request):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def me(request):
-    data = UserSerializer(request.user).data
-    if request.user.organisation_id:
-        data['scout_count'] = User.objects.filter(organisation_id=request.user.organisation_id).count()
+    # Refetch with select_related to avoid N+1 when serializer accesses organisation
+    user = User.objects.select_related('organisation').get(pk=request.user.pk)
+    data = UserSerializer(user).data
+    if user.organisation_id:
+        data['scout_count'] = User.objects.filter(organisation_id=user.organisation_id).count()
     else:
         data['scout_count'] = 0
     return Response(data)
@@ -260,7 +262,9 @@ def sighting_detail(request, sighting_id):
     if not org:
         return Response({'detail': 'No organisation'}, status=status.HTTP_400_BAD_REQUEST)
     try:
-        sighting = Sighting.objects.get(pk=sighting_id, organisation=org)
+        sighting = Sighting.objects.select_related('venue', 'brand', 'submitted_by').get(
+            pk=sighting_id, organisation=org
+        )
     except Sighting.DoesNotExist:
         return Response({'detail': 'Not found'}, status=status.HTTP_404_NOT_FOUND)
 
@@ -284,7 +288,10 @@ def sighting_photo(request, sighting_id):
     if not org:
         return Response({'detail': 'No organisation'}, status=status.HTTP_404_NOT_FOUND)
     try:
-        sighting = Sighting.objects.get(pk=sighting_id, organisation=org)
+        # Only load fields needed for photo response (avoids pulling venue, brand, data, etc.)
+        sighting = Sighting.objects.only('id', 'organisation_id', 'photo_url', 'photo_b64').get(
+            pk=sighting_id, organisation=org
+        )
     except Sighting.DoesNotExist:
         return Response({'detail': 'Not found'}, status=status.HTTP_404_NOT_FOUND)
     # S3: if photo_url is set, redirect to it so the same endpoint works for both storage backends
