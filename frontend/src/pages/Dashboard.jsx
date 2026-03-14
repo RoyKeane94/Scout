@@ -26,7 +26,7 @@ function formatTime(createdAt) {
   const d = new Date(createdAt);
   const now = new Date();
   const sameDay = d.toDateString() === now.toDateString();
-  if (sameDay) return d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: true });
+  if (sameDay) return d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });
   const yesterday = new Date(now);
   yesterday.setDate(yesterday.getDate() - 1);
   if (d.toDateString() === yesterday.toDateString()) return 'Yesterday';
@@ -35,7 +35,7 @@ function formatTime(createdAt) {
 
 function formatDateFull(createdAt) {
   if (!createdAt) return '—';
-  return new Date(createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true });
+  return new Date(createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false });
 }
 
 function isActivePromo(p) {

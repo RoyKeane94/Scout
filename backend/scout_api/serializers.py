@@ -243,7 +243,16 @@ class SightingCreateSerializer(serializers.Serializer):
             create_kwargs['lat'] = Decimal(str(validated_data['lat']))
         if validated_data.get('lng') is not None:
             create_kwargs['lng'] = Decimal(str(validated_data['lng']))
-        return Sighting.objects.create(**create_kwargs)
+        sighting = Sighting.objects.create(**create_kwargs)
+        if photo_b64 and photo_b64.strip():
+            from .s3_photos import upload_photo_b64_to_s3
+            from django.conf import settings
+            if getattr(settings, 'S3_PHOTOS_ENABLED', False):
+                url = upload_photo_b64_to_s3(photo_b64, org.id, sighting.id)
+                if url:
+                    sighting.photo_url = url
+                    sighting.save(update_fields=['photo_url'])
+        return sighting
 
 
 class SightingUpdateSerializer(serializers.Serializer):
@@ -266,6 +275,15 @@ class SightingUpdateSerializer(serializers.Serializer):
             if photo_b64 and ',' in str(photo_b64) and str(photo_b64).startswith('data:'):
                 photo_b64 = str(photo_b64).split(',', 1)[1]
             sighting.photo_b64 = photo_b64
+            if photo_b64 and photo_b64.strip():
+                from .s3_photos import upload_photo_b64_to_s3
+                from django.conf import settings
+                if getattr(settings, 'S3_PHOTOS_ENABLED', False):
+                    url = upload_photo_b64_to_s3(photo_b64, org.id, sighting.id)
+                    if url:
+                        sighting.photo_url = url
+            else:
+                sighting.photo_url = None
         if 'lat' in validated_data:
             sighting.lat = Decimal(str(validated_data['lat'])) if validated_data['lat'] is not None else None
         if 'lng' in validated_data:
