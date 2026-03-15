@@ -68,6 +68,16 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Prevent iOS zoom on input focus: touch devices need font-size >= 16px on form controls */
+@media (pointer: coarse) {
+  input,
+  select,
+  textarea,
+  .scout-select-trigger {
+    font-size: 16px !important;
+  }
+}
+
 h1, h2, h3 {
   font-family: 'Bebas Neue', sans-serif;
   font-weight: 400;
