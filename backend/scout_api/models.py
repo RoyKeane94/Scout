@@ -96,6 +96,7 @@ class Sighting(models.Model):
     photo_url = models.URLField(max_length=500, null=True, blank=True)  # S3 (or CDN) URL when set
     lat = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
     lng = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+    town = models.CharField(max_length=255, blank=True)  # locality from geocode (e.g. North Sheen)
     data = models.JSONField(default=dict)
     promo_details = models.TextField(blank=True, null=True)  # details when a promotion is logged
     created_at = models.DateTimeField(auto_now_add=True)

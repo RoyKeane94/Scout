@@ -432,6 +432,7 @@ export default function Dashboard() {
                     <tr>
                       <th>Brand</th>
                       <th>Venue</th>
+                      <th>Type</th>
                       <th>Placement</th>
                       <th>Activity</th>
                       <th>Price</th>
@@ -444,7 +445,7 @@ export default function Dashboard() {
                     {tableRowsWithDates.map((item, idx) =>
                       item.type === 'date' ? (
                         <tr key={`date-${idx}-${item.dateLabel}`} className="dashboard-date-row">
-                          <td colSpan={8}>{item.dateLabel}</td>
+                          <td colSpan={9}>{item.dateLabel}</td>
                         </tr>
                       ) : (
                         (() => {
@@ -470,14 +471,15 @@ export default function Dashboard() {
                               <td className="dashboard-cell-venue">
                                 <div className="dashboard-venue-name">
                                   {s.venue?.name || '—'}
-                                  {venueType && (
+                                  {s.town && (
                                     <span className="dashboard-comp-gap-venue-type-inline">
                                       {' '}
-                                      ({venueType})
+                                      ({s.town})
                                     </span>
                                   )}
                                 </div>
                               </td>
+                              <td className="dashboard-cell-type">{venueType || '—'}</td>
                               <td style={{ color: 'var(--grey-1)', fontSize: 13 }}>{placement}</td>
                               <td>
                                 <div className="dashboard-cell-chips">
@@ -621,15 +623,17 @@ export default function Dashboard() {
                     <tr>
                       <th>Brand</th>
                       <th>Venue</th>
+                      <th>Type</th>
                       <th>Placement</th>
                       <th>Promo</th>
                       <th>Logged by</th>
-                      <th>When</th> 
+                      <th>When</th>
                     </tr>
                   </thead>
                   <tbody>
                     {competitorSightings.map((s) => {
                       const d = s.data || {};
+                      const venueType = s.venue?.venue_type ? VENUE_TYPE_LABELS[s.venue.venue_type] || s.venue.venue_type : '';
                       return (
                         <tr key={s.id} onClick={() => openDrawer(s.id)}>
                           <td>
@@ -638,14 +642,15 @@ export default function Dashboard() {
                           <td>
                             <div className="dashboard-venue-name">
                               {s.venue?.name || '—'}
-                              {s.venue?.venue_type && (
+                              {s.town && (
                                 <span className="dashboard-comp-gap-venue-type-inline">
                                   {' '}
-                                  ({VENUE_TYPE_LABELS[s.venue.venue_type] || s.venue.venue_type})
+                                  ({s.town})
                                 </span>
                               )}
                             </div>
                           </td>
+                          <td className="dashboard-cell-type">{venueType || '—'}</td>
                           <td>{d.placement || '—'}</td>
                           <td>
                             {isActivePromo(d.promo) ? (
@@ -781,6 +786,7 @@ export default function Dashboard() {
                   <thead>
                     <tr>
                       <th>Venue</th>
+                      <th>Type</th>
                       <th>Placement</th>
                       <th>Activity</th>
                       <th>Price</th>
@@ -799,14 +805,15 @@ export default function Dashboard() {
                             <td>
                               <div className="dashboard-venue-name">
                                 {s.venue?.name || '—'}
-                                {venueType && (
+                                {s.town && (
                                   <span className="dashboard-comp-gap-venue-type-inline">
                                     {' '}
-                                    ({venueType})
+                                    ({s.town})
                                   </span>
                                 )}
                               </div>
                             </td>
+                            <td className="dashboard-cell-type">{venueType || '—'}</td>
                             <td>{d.placement || '—'}</td>
                             <td>
                               <div className="dashboard-cell-chips">
@@ -848,6 +855,7 @@ export default function Dashboard() {
             <div className="dashboard-drawer-brand">{selectedSighting?.brand?.name || '—'}</div>
             <div className="dashboard-drawer-venue">
               {selectedSighting?.venue?.name || '—'}
+              {selectedSighting?.town ? ` (${selectedSighting.town})` : ''}
               {selectedSighting?.venue?.venue_type
                 ? ` · ${VENUE_TYPE_LABELS[selectedSighting.venue.venue_type] || selectedSighting.venue.venue_type}`
                 : ''}

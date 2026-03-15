@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import api from '../api/axios';
 import ScoutSelect from '../components/ScoutSelect';
-import { formatShortAddress } from '../utils/geocode';
+import { formatShortAddress, getTownFromAddress } from '../utils/geocode';
 
 const PLACEMENT_OPTIONS = [
   'Eye level fridge',
@@ -56,6 +56,7 @@ export default function Log() {
   const [geoAddress, setGeoAddress] = useState(null);
   const [geoAddressLoading, setGeoAddressLoading] = useState(false);
   const [geoBusinessName, setGeoBusinessName] = useState(null);
+  const [geoTown, setGeoTown] = useState(null);
   const [venueAutoFromGeoDone, setVenueAutoFromGeoDone] = useState(false);
 
   // Brand add
@@ -74,6 +75,7 @@ export default function Log() {
     if (!editSighting) return;
     setVenueId(editSighting.venue?.id ? String(editSighting.venue.id) : '');
     setBrandId(editSighting.brand?.id ? String(editSighting.brand.id) : '');
+    if (editSighting.town) setGeoTown(editSighting.town);
     setData({
       ...(editSighting.data || {}),
       promo_details: editSighting.promo_details ?? editSighting.data?.promo_details ?? '',
@@ -121,6 +123,8 @@ export default function Log() {
           setGeoBusinessName(business || null);
           const short = formatShortAddress(data);
           if (short) setGeoAddress(short);
+          const town = getTownFromAddress(data);
+          setGeoTown(town || null);
         })
         .catch(() => {})
         .finally(() => {
@@ -295,6 +299,8 @@ export default function Log() {
       payload.lat = Number(coords.lat);
       payload.lng = Number(coords.lng);
     }
+    const town = geoTown && String(geoTown).trim() ? String(geoTown).trim() : '';
+    if (town) payload.town = town;
     const req = editSighting
       ? api.patch(`sightings/${editSighting.id}/`, payload)
       : api.post('/sightings/', payload);

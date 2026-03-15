@@ -257,6 +257,7 @@
 .dashboard-brand-name { font-weight: 500; }
 
 .dashboard-cell-venue { min-width: 160px; }
+.dashboard-cell-type { min-width: 72px; font-size: var(--text-sm); color: var(--grey-1); }
 .dashboard-venue-name { font-size: var(--text-sm); }
 .dashboard-venue-type { font-size: var(--text-xs); color: var(--grey-1); font-weight: 300; margin-top: 1px; }
 

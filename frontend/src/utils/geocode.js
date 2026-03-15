@@ -1,3 +1,11 @@
+/** Extract town/locality from Nominatim address (for saving on sighting). */
+export function getTownFromAddress(data) {
+  const addr = data?.address;
+  if (!addr) return null;
+  const town = addr.suburb || addr.village || addr.town || addr.city || addr.municipality || addr.locality || addr.hamlet;
+  return town && typeof town === 'string' ? town.trim() : null;
+}
+
 /** Format Nominatim reverse geocode result: shop name + town + postcode, or just town + postcode. */
 export function formatShortAddress(data) {
   const addr = data?.address;

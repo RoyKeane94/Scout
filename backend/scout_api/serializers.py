@@ -200,7 +200,7 @@ class SightingSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Sighting
-        fields = ['id', 'venue', 'brand', 'photo_url', 'lat', 'lng', 'data', 'promo_details', 'created_at', 'submitted_by']
+        fields = ['id', 'venue', 'brand', 'photo_url', 'lat', 'lng', 'town', 'data', 'promo_details', 'created_at', 'submitted_by']
 
     def get_photo_url(self, obj):
         if obj.photo_url:
@@ -218,6 +218,7 @@ class SightingCreateSerializer(serializers.Serializer):
     photo_b64 = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     lat = serializers.FloatField(required=False, allow_null=True)
     lng = serializers.FloatField(required=False, allow_null=True)
+    town = serializers.CharField(required=False, allow_blank=True, default='')
     data = serializers.JSONField(required=False, default=dict)
 
     def create(self, validated_data):
@@ -236,6 +237,7 @@ class SightingCreateSerializer(serializers.Serializer):
             'venue': venue,
             'brand': brand,
             'photo_b64': photo_b64,
+            'town': (validated_data.get('town') or '').strip() or '',
             'data': data_dict,
             'promo_details': data_dict.get('promo_details') or None,
         }
@@ -261,6 +263,7 @@ class SightingUpdateSerializer(serializers.Serializer):
     photo_b64 = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     lat = serializers.FloatField(required=False, allow_null=True)
     lng = serializers.FloatField(required=False, allow_null=True)
+    town = serializers.CharField(required=False, allow_blank=True)
     data = serializers.JSONField(required=False)
 
     def update(self, sighting, validated_data):
@@ -288,6 +291,8 @@ class SightingUpdateSerializer(serializers.Serializer):
             sighting.lat = Decimal(str(validated_data['lat'])) if validated_data['lat'] is not None else None
         if 'lng' in validated_data:
             sighting.lng = Decimal(str(validated_data['lng'])) if validated_data['lng'] is not None else None
+        if 'town' in validated_data:
+            sighting.town = (validated_data['town'] or '').strip() or ''
         if 'data' in validated_data:
             data_dict = validated_data['data']
             sighting.data = data_dict
