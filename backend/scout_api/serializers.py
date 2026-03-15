@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth.password_validation import validate_password
-from .models import Organisation, User, Venue, Brand, FieldConfig, Sighting, Gap
+from .models import Organisation, User, Venue, Brand, FieldConfig, Sighting, Gap, Town
 
 
 class RegisterOrgSerializer(serializers.Serializer):
@@ -93,6 +93,12 @@ class VenueSerializer(serializers.ModelSerializer):
     class Meta:
         model = Venue
         fields = ['id', 'name', 'venue_type', 'lat', 'lng', 'created_at']
+
+
+class TownSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Town
+        fields = ['id', 'name']
 
 
 class VenueCreateSerializer(serializers.Serializer):
@@ -194,6 +200,7 @@ class GapCreateSerializer(serializers.Serializer):
 class SightingSerializer(serializers.ModelSerializer):
     venue = VenueSerializer(read_only=True)
     brand = BrandSerializer(read_only=True)
+    town = TownSerializer(read_only=True)
     submitted_by = UserListSerializer(read_only=True)
     # photo_b64 omitted from list/detail; photo_url is S3 URL when set, or API photo endpoint when stored in Postgres (photo_b64)
     photo_url = serializers.SerializerMethodField()
@@ -218,7 +225,7 @@ class SightingCreateSerializer(serializers.Serializer):
     photo_b64 = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     lat = serializers.FloatField(required=False, allow_null=True)
     lng = serializers.FloatField(required=False, allow_null=True)
-    town = serializers.CharField(required=False, allow_blank=True, default='')
+    town_name = serializers.CharField(required=False, allow_blank=True, default='')
     data = serializers.JSONField(required=False, default=dict)
 
     def create(self, validated_data):
@@ -231,13 +238,17 @@ class SightingCreateSerializer(serializers.Serializer):
         if photo_b64 and ',' in photo_b64 and photo_b64.startswith('data:'):
             photo_b64 = photo_b64.split(',', 1)[1]
         data_dict = validated_data.get('data', {}) or {}
+        town = None
+        name = (validated_data.get('town_name') or '').strip()
+        if name:
+            town, _ = Town.objects.get_or_create(organisation=org, name=name[:255])
         create_kwargs = {
             'organisation': org,
             'submitted_by': user,
             'venue': venue,
             'brand': brand,
             'photo_b64': photo_b64,
-            'town': (validated_data.get('town') or '').strip() or '',
+            'town': town,
             'data': data_dict,
             'promo_details': data_dict.get('promo_details') or None,
         }
@@ -263,7 +274,8 @@ class SightingUpdateSerializer(serializers.Serializer):
     photo_b64 = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     lat = serializers.FloatField(required=False, allow_null=True)
     lng = serializers.FloatField(required=False, allow_null=True)
-    town = serializers.CharField(required=False, allow_blank=True)
+    town_id = serializers.IntegerField(required=False, allow_null=True)
+    town_name = serializers.CharField(required=False, allow_blank=True)
     data = serializers.JSONField(required=False)
 
     def update(self, sighting, validated_data):
@@ -291,8 +303,19 @@ class SightingUpdateSerializer(serializers.Serializer):
             sighting.lat = Decimal(str(validated_data['lat'])) if validated_data['lat'] is not None else None
         if 'lng' in validated_data:
             sighting.lng = Decimal(str(validated_data['lng'])) if validated_data['lng'] is not None else None
-        if 'town' in validated_data:
-            sighting.town = (validated_data['town'] or '').strip() or ''
+        if 'town_id' in validated_data:
+            tid = validated_data['town_id']
+            if tid is not None:
+                sighting.town = Town.objects.get(pk=tid, organisation=org)
+            else:
+                sighting.town = None
+        elif 'town_name' in validated_data:
+            name = (validated_data['town_name'] or '').strip()
+            if name:
+                town, _ = Town.objects.get_or_create(organisation=org, name=name[:255])
+                sighting.town = town
+            else:
+                sighting.town = None
         if 'data' in validated_data:
             data_dict = validated_data['data']
             sighting.data = data_dict

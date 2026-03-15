@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
-from .models import Organisation, User, Venue, Brand, FieldConfig, Sighting, ErrorLog, Gap
+from .models import Organisation, User, Venue, Brand, FieldConfig, Town, Sighting, ErrorLog, Gap
 
 
 @admin.register(Organisation)
@@ -39,6 +39,13 @@ class BrandAdmin(admin.ModelAdmin):
     search_fields = ('name',)
 
 
+@admin.register(Town)
+class TownAdmin(admin.ModelAdmin):
+    list_display = ('id', 'name', 'organisation')
+    list_filter = ('organisation',)
+    search_fields = ('name',)
+
+
 @admin.register(FieldConfig)
 class FieldConfigAdmin(admin.ModelAdmin):
     list_display = ('id', 'organisation', 'field_id', 'is_active', 'display_order')
@@ -58,7 +65,7 @@ class GapAdmin(admin.ModelAdmin):
 @admin.register(Sighting)
 class SightingAdmin(admin.ModelAdmin):
     list_display = ('id', 'organisation', 'brand', 'venue', 'town', 'submitted_by', 'created_at')
-    list_filter = ('organisation', 'created_at')
+    list_filter = ('organisation', 'town', 'created_at')
     search_fields = ('venue__name', 'brand__name', 'town')
     raw_id_fields = ('venue', 'brand', 'submitted_by')
     readonly_fields = ('created_at',)

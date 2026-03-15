@@ -17,6 +17,7 @@ urlpatterns = [
     path('users/', views.user_list),
     path('users/<int:user_id>/role/', views.user_update_role),
     path('venues/', views.venue_list),
+    path('towns/', views.town_list),
     path('sightings/', views.sighting_list),
     path('sightings/<int:sighting_id>/photo/', views.sighting_photo),
     path('sightings/<int:sighting_id>/', views.sighting_detail),

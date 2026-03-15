@@ -64,6 +64,19 @@ class FieldConfig(models.Model):
     display_order = models.PositiveIntegerField(default=0)
 
 
+class Town(models.Model):
+    """Locality from geocode; one per (organisation, name) for search/filter."""
+    organisation = models.ForeignKey(Organisation, on_delete=models.CASCADE)
+    name = models.CharField(max_length=255)
+
+    class Meta:
+        unique_together = [('organisation', 'name')]
+        ordering = ['name']
+
+    def __str__(self):
+        return self.name
+
+
 class ErrorLog(models.Model):
     """Client-side and runtime errors logged for debugging."""
     message = models.TextField()
@@ -96,7 +109,7 @@ class Sighting(models.Model):
     photo_url = models.URLField(max_length=500, null=True, blank=True)  # S3 (or CDN) URL when set
     lat = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
     lng = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
-    town = models.CharField(max_length=255, blank=True)  # locality from geocode (e.g. North Sheen)
+    town = models.ForeignKey('Town', on_delete=models.SET_NULL, null=True, blank=True, related_name='sightings')
     data = models.JSONField(default=dict)
     promo_details = models.TextField(blank=True, null=True)  # details when a promotion is logged
     created_at = models.DateTimeField(auto_now_add=True)

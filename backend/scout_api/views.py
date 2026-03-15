@@ -8,11 +8,11 @@ from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import authenticate
 
-from .models import Organisation, User, Venue, Brand, FieldConfig, Sighting, ErrorLog, Gap
+from .models import Organisation, User, Venue, Brand, FieldConfig, Sighting, ErrorLog, Gap, Town
 from .serializers import (
     RegisterOrgSerializer, RegisterMemberSerializer, UserSerializer, UserListSerializer,
     VenueSerializer, VenueCreateSerializer, BrandSerializer, FieldConfigSerializer, FieldConfigBulkSerializer,
-    BrandBulkSerializer, SightingSerializer, SightingCreateSerializer, SightingUpdateSerializer,
+    BrandBulkSerializer, TownSerializer, SightingSerializer, SightingCreateSerializer, SightingUpdateSerializer,
     GapSerializer, GapCreateSerializer,
 )
 
@@ -245,7 +245,7 @@ def sighting_list(request):
         return Response({'detail': 'No organisation'}, status=status.HTTP_400_BAD_REQUEST)
 
     if request.method == 'GET':
-        sightings = Sighting.objects.filter(organisation=org).select_related('venue', 'brand', 'submitted_by').order_by('-created_at')
+        sightings = Sighting.objects.filter(organisation=org).select_related('venue', 'brand', 'town', 'submitted_by').order_by('-created_at')
         return Response(SightingSerializer(sightings, many=True, context={'request': request}).data)
 
     ser = SightingCreateSerializer(data=request.data, context={'request': request})
@@ -262,7 +262,7 @@ def sighting_detail(request, sighting_id):
     if not org:
         return Response({'detail': 'No organisation'}, status=status.HTTP_400_BAD_REQUEST)
     try:
-        sighting = Sighting.objects.select_related('venue', 'brand', 'submitted_by').get(
+        sighting = Sighting.objects.select_related('venue', 'brand', 'town', 'submitted_by').get(
             pk=sighting_id, organisation=org
         )
     except Sighting.DoesNotExist:
@@ -314,6 +314,21 @@ def sighting_photo(request, sighting_id):
     if not raw:
         return Response({'detail': 'Invalid photo'}, status=status.HTTP_400_BAD_REQUEST)
     return HttpResponse(raw, content_type='image/jpeg')
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def town_list(request):
+    """List towns for the org (for dropdown when editing sighting)."""
+    org = request.user.organisation
+    if not org:
+        return Response({'detail': 'No organisation'}, status=status.HTTP_400_BAD_REQUEST)
+    search = request.GET.get('search', '').strip()
+    qs = Town.objects.filter(organisation=org).order_by('name')
+    if search:
+        qs = qs.filter(name__icontains=search)
+    qs = qs[:50]
+    return Response(TownSerializer(qs, many=True).data)
 
 
 @api_view(['GET', 'POST'])

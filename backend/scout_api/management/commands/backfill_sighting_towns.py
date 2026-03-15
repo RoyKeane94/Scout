@@ -9,9 +9,7 @@ import urllib.parse
 import urllib.request
 
 from django.core.management.base import BaseCommand
-from django.db.models import Q
-
-from scout_api.models import Sighting
+from scout_api.models import Sighting, Town
 
 
 NOMINATIM_URL = "https://nominatim.openstreetmap.org/reverse?lat={lat}&lon={lon}&format=json&addressdetails=1"
@@ -70,7 +68,8 @@ class Command(BaseCommand):
         qs = Sighting.objects.filter(
             lat__isnull=False,
             lng__isnull=False,
-        ).filter(Q(town="") | Q(town__isnull=True))
+            town__isnull=True,
+        )
 
         if limit:
             qs = qs[:limit]
@@ -83,13 +82,17 @@ class Command(BaseCommand):
         for i, sighting in enumerate(qs):
             lat = float(sighting.lat)
             lng = float(sighting.lng)
-            town = fetch_town_for_coords(lat, lng)
-            if town:
+            town_name = fetch_town_for_coords(lat, lng)
+            if town_name:
                 if not dry_run:
-                    sighting.town = town[:255]  # match max_length
+                    town_obj, _ = Town.objects.get_or_create(
+                        organisation_id=sighting.organisation_id,
+                        name=town_name[:255],
+                    )
+                    sighting.town = town_obj
                     sighting.save(update_fields=["town"])
                 updated += 1
-                self.stdout.write(f"  [{i + 1}/{total}] id={sighting.id} -> town={town!r}")
+                self.stdout.write(f"  [{i + 1}/{total}] id={sighting.id} -> town={town_name!r}")
             else:
                 failed += 1
                 self.stdout.write(self.style.WARNING(f"  [{i + 1}/{total}] id={sighting.id} -> no town from geocode"))

@@ -278,6 +278,7 @@ export default function Dashboard() {
     [gaps]
   );
   const [expandedGapId, setExpandedGapId] = useState(null);
+  const [expandedCompanyVenueKey, setExpandedCompanyVenueKey] = useState(null);
 
   const submitterCounts = useMemo(() => {
     const counts = {};
@@ -471,10 +472,10 @@ export default function Dashboard() {
                               <td className="dashboard-cell-venue">
                                 <div className="dashboard-venue-name">
                                   {s.venue?.name || '—'}
-                                  {s.town && (
+                                  {s.town?.name && (
                                     <span className="dashboard-comp-gap-venue-type-inline">
                                       {' '}
-                                      ({s.town})
+                                      ({s.town.name})
                                     </span>
                                   )}
                                 </div>
@@ -642,10 +643,10 @@ export default function Dashboard() {
                           <td>
                             <div className="dashboard-venue-name">
                               {s.venue?.name || '—'}
-                              {s.town && (
+                              {s.town?.name && (
                                 <span className="dashboard-comp-gap-venue-type-inline">
                                   {' '}
-                                  ({s.town})
+                                  ({s.town.name})
                                 </span>
                               )}
                             </div>
@@ -755,27 +756,51 @@ export default function Dashboard() {
                       <div className="dashboard-comp-gap-title">Where you're stocked</div>
                       <div className="dashboard-comp-gap-sub">Sorted by most recent sighting</div>
                     </div>
-                    {ownBrandVenues.map((g, i) => (
-                      <div key={i} className="dashboard-comp-gap-row">
-                        <div className="dashboard-comp-gap-left">
-                          <div className="dashboard-comp-gap-venue-name">{g.venue.name}</div>
-                          <div className="dashboard-comp-gap-venue-type">
-                            {g.venue.venue_type ? VENUE_TYPE_LABELS[g.venue.venue_type] : ''}
+                    {ownBrandVenues.map((g, i) => {
+                      const venueKey = g.venue?.id ?? g.venue?.name ?? i;
+                      const areas = [...new Set(g.sightings.map((s) => s.town?.name).filter(Boolean))];
+                      const isExpanded = expandedCompanyVenueKey === venueKey;
+                      return (
+                        <div key={venueKey} className="dashboard-gap-row-wrap">
+                          <div
+                            className="dashboard-comp-gap-row dashboard-comp-gap-row-clickable"
+                            onClick={() => setExpandedCompanyVenueKey(isExpanded ? null : venueKey)}
+                            role="button"
+                            tabIndex={0}
+                            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setExpandedCompanyVenueKey(isExpanded ? null : venueKey); } }}
+                          >
+                            <div className="dashboard-comp-gap-left">
+                              <div className="dashboard-comp-gap-venue-name">{g.venue.name}</div>
+                              <div className="dashboard-comp-gap-venue-type">
+                                {g.venue.venue_type ? VENUE_TYPE_LABELS[g.venue.venue_type] : ''}
+                              </div>
+                            </div>
+                            <div className="dashboard-comp-gap-pills">
+                              <span className="dashboard-comp-pill green">
+                                <span className="dashboard-comp-pill-num">{g.sightings.length}</span>
+                                {' '}
+                                sighting{g.sightings.length !== 1 ? 's' : ''}
+                              </span>
+                            </div>
+                            <div className="dashboard-comp-gap-last">
+                              <div className="dashboard-cell-time">
+                                {formatTime(g.sightings.reduce((m, s) => (new Date(s.created_at) > new Date(m.created_at) ? s : m), g.sightings[0])?.created_at)}
+                              </div>
+                              <div className="dashboard-comp-gap-who">
+                                {g.sightings.reduce((m, s) => (new Date(s.created_at) > new Date(m.created_at) ? s : m), g.sightings[0])?.submitted_by?.name || '—'}
+                              </div>
+                            </div>
                           </div>
+                          {isExpanded && (
+                            <div className="dashboard-comp-gap-areas">
+                              <span className="dashboard-comp-gap-areas-label">Areas:</span>
+                              {' '}
+                              {areas.length ? areas.join(', ') : '—'}
+                            </div>
+                          )}
                         </div>
-                        <div className="dashboard-comp-gap-pills">
-                          <span className="dashboard-comp-pill green">{g.sightings.length} sighting{g.sightings.length !== 1 ? 's' : ''}</span>
-                        </div>
-                        <div className="dashboard-comp-gap-last">
-                          <div className="dashboard-cell-time">
-                            {formatTime(g.sightings.reduce((m, s) => (new Date(s.created_at) > new Date(m.created_at) ? s : m), g.sightings[0])?.created_at)}
-                          </div>
-                          <div className="dashboard-comp-gap-who">
-                            {g.sightings.reduce((m, s) => (new Date(s.created_at) > new Date(m.created_at) ? s : m), g.sightings[0])?.submitted_by?.name || '—'}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </>
               )}
@@ -805,10 +830,10 @@ export default function Dashboard() {
                             <td>
                               <div className="dashboard-venue-name">
                                 {s.venue?.name || '—'}
-                                {s.town && (
+                                {s.town?.name && (
                                   <span className="dashboard-comp-gap-venue-type-inline">
                                     {' '}
-                                    ({s.town})
+                                    ({s.town.name})
                                   </span>
                                 )}
                               </div>
@@ -855,7 +880,7 @@ export default function Dashboard() {
             <div className="dashboard-drawer-brand">{selectedSighting?.brand?.name || '—'}</div>
             <div className="dashboard-drawer-venue">
               {selectedSighting?.venue?.name || '—'}
-              {selectedSighting?.town ? ` (${selectedSighting.town})` : ''}
+              {selectedSighting?.town?.name ? ` (${selectedSighting.town.name})` : ''}
               {selectedSighting?.venue?.venue_type
                 ? ` · ${VENUE_TYPE_LABELS[selectedSighting.venue.venue_type] || selectedSighting.venue.venue_type}`
                 : ''}

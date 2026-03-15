@@ -57,6 +57,10 @@ export default function Log() {
   const [geoAddressLoading, setGeoAddressLoading] = useState(false);
   const [geoBusinessName, setGeoBusinessName] = useState(null);
   const [geoTown, setGeoTown] = useState(null);
+  const [towns, setTowns] = useState([]);
+  const [townId, setTownId] = useState('');
+  const [townAdding, setTownAdding] = useState(false);
+  const [newTownName, setNewTownName] = useState('');
   const [venueAutoFromGeoDone, setVenueAutoFromGeoDone] = useState(false);
 
   // Brand add
@@ -69,13 +73,22 @@ export default function Log() {
     });
     api.get('/config/brands/').then((res) => setBrands(res.data));
     api.get('/venues/').then((res) => setVenues(res.data || [])).catch(() => setVenues([]));
+    api.get('/towns/').then((res) => setTowns(res.data || [])).catch(() => setTowns([]));
   }, []);
 
   useEffect(() => {
     if (!editSighting) return;
     setVenueId(editSighting.venue?.id ? String(editSighting.venue.id) : '');
     setBrandId(editSighting.brand?.id ? String(editSighting.brand.id) : '');
-    if (editSighting.town) setGeoTown(editSighting.town);
+    if (editSighting.town) {
+      const t = editSighting.town;
+      if (t && typeof t === 'object' && t.id != null) {
+        setTownId(String(t.id));
+        setGeoTown(t.name ?? '');
+      } else if (typeof t === 'string') {
+        setGeoTown(t);
+      }
+    }
     setData({
       ...(editSighting.data || {}),
       promo_details: editSighting.promo_details ?? editSighting.data?.promo_details ?? '',
@@ -299,8 +312,20 @@ export default function Log() {
       payload.lat = Number(coords.lat);
       payload.lng = Number(coords.lng);
     }
-    const town = geoTown != null && String(geoTown).trim() ? String(geoTown).trim() : '';
-    payload.town = town;
+    if (editSighting) {
+      if (townAdding && (newTownName || geoTown)) {
+        payload.town_name = (newTownName || geoTown || '').trim() || null;
+      } else if ((newTownName || '').trim()) {
+        payload.town_name = (newTownName || '').trim();
+      } else if (townId && towns.some((t) => t.id === parseInt(townId, 10))) {
+        payload.town_id = parseInt(townId, 10);
+      } else {
+        payload.town_id = null;
+      }
+    } else {
+      const name = geoTown != null && String(geoTown).trim() ? String(geoTown).trim() : '';
+      if (name) payload.town_name = name;
+    }
     const req = editSighting
       ? api.patch(`sightings/${editSighting.id}/`, payload)
       : api.post('/sightings/', payload);
@@ -399,14 +424,71 @@ export default function Log() {
           {editSighting && (
             <div className="log-field-group">
               <div className="card-label">Town</div>
-              <div className="log-field">
-                <input
-                  type="text"
-                  value={geoTown ?? ''}
-                  onChange={(e) => setGeoTown(e.target.value || null)}
-                  placeholder="e.g. North Sheen"
+              {townAdding ? (
+                <div className="log-venue-add">
+                  <div className="log-new-venue-row">
+                    <div className="log-field">
+                      <input
+                        type="text"
+                        value={newTownName || geoTown || ''}
+                        onChange={(e) => setNewTownName(e.target.value)}
+                        placeholder="e.g. North Sheen"
+                        autoFocus
+                      />
+                    </div>
+                  </div>
+                  <div className="log-venue-add-actions">
+                    <button
+                      type="button"
+                      className="log-confirm-btn"
+                      onClick={() => {
+                        const name = (newTownName || geoTown || '').trim();
+                        if (name) setTownAdding(false);
+                      }}
+                    >
+                      Done
+                    </button>
+                    <button type="button" className="log-brand-cancel-btn" onClick={() => { setTownAdding(false); setNewTownName(''); setTownId(''); }}>
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <ScoutSelect
+                  value={townId}
+                  onChange={(v) => {
+                    if (v === '__add__') setTownAdding(true);
+                    else { setTownId(v || ''); setTownAdding(false); }
+                  }}
+                  placeholder="Please select…"
+                  getLabel={(v) => {
+                    if (!v || v === '__add__') return '';
+                    const t = towns.find((x) => x.id === parseInt(v, 10) || x.id === v);
+                    return t ? t.name : '';
+                  }}
+                  renderOptions={({ onSelect }) => (
+                    <>
+                      <button type="button" role="option" className="scout-select-option" onClick={() => onSelect('')}>
+                        Please select…
+                      </button>
+                      {towns.map((t) => (
+                        <button
+                          key={t.id}
+                          type="button"
+                          role="option"
+                          className={`scout-select-option ${townId === String(t.id) ? 'selected' : ''}`}
+                          onClick={() => onSelect(String(t.id))}
+                        >
+                          {t.name}
+                        </button>
+                      ))}
+                      <button type="button" role="option" className="scout-select-option" onClick={() => onSelect('__add__')}>
+                        + Add other town
+                      </button>
+                    </>
+                  )}
                 />
-              </div>
+              )}
             </div>
           )}
 
