@@ -299,8 +299,8 @@ export default function Log() {
       payload.lat = Number(coords.lat);
       payload.lng = Number(coords.lng);
     }
-    const town = geoTown && String(geoTown).trim() ? String(geoTown).trim() : '';
-    if (town) payload.town = town;
+    const town = geoTown != null && String(geoTown).trim() ? String(geoTown).trim() : '';
+    payload.town = town;
     const req = editSighting
       ? api.patch(`sightings/${editSighting.id}/`, payload)
       : api.post('/sightings/', payload);
@@ -395,6 +395,20 @@ export default function Log() {
               </button>
             </div>
           </div>
+
+          {editSighting && (
+            <div className="log-field-group">
+              <div className="card-label">Town</div>
+              <div className="log-field">
+                <input
+                  type="text"
+                  value={geoTown ?? ''}
+                  onChange={(e) => setGeoTown(e.target.value || null)}
+                  placeholder="e.g. North Sheen"
+                />
+              </div>
+            </div>
+          )}
 
           <div className="log-field-group">
             <div className="card-label">Venue</div>

@@ -57,9 +57,9 @@ class GapAdmin(admin.ModelAdmin):
 
 @admin.register(Sighting)
 class SightingAdmin(admin.ModelAdmin):
-    list_display = ('id', 'organisation', 'brand', 'venue', 'submitted_by', 'created_at')
+    list_display = ('id', 'organisation', 'brand', 'venue', 'town', 'submitted_by', 'created_at')
     list_filter = ('organisation', 'created_at')
-    search_fields = ('venue__name', 'brand__name')
+    search_fields = ('venue__name', 'brand__name', 'town')
     raw_id_fields = ('venue', 'brand', 'submitted_by')
     readonly_fields = ('created_at',)
 
