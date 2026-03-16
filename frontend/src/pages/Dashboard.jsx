@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import api from '../api/axios';
 import { useAuth } from '../context/AuthContext';
@@ -696,7 +696,6 @@ export default function Dashboard() {
                   <thead>
                     <tr>
                       <th>Venue</th>
-                      <th>Location</th>
                       <th>Type</th>
                       <th>Logged by</th>
                       <th>When</th>
@@ -716,9 +715,14 @@ export default function Dashboard() {
                             <td>
                               <div className="dashboard-venue-name">
                                 {g.venue?.name || '—'}
+                                {g.town?.name && (
+                                  <span className="dashboard-comp-gap-venue-type-inline">
+                                    {' '}
+                                    ({g.town.name})
+                                  </span>
+                                )}
                               </div>
                             </td>
-                            <td>{g.town?.name || '—'}</td>
                             <td>{venueType || '—'}</td>
                             <td>{g.submitted_by?.name || g.submitted_by?.email || '—'}</td>
                             <td className="dashboard-cell-time">{formatTime(g.created_at)}</td>
@@ -740,7 +744,7 @@ export default function Dashboard() {
                           </tr>
                           {isExpanded && hasNotes && (
                             <tr className="dashboard-gap-notes-row">
-                              <td colSpan={6}>
+                              <td colSpan={5}>
                                 <div className="dashboard-gap-notes">
                                   {g.notes}
                                 </div>
@@ -787,51 +791,86 @@ export default function Dashboard() {
                       <div className="dashboard-comp-gap-title">Where you're stocked</div>
                       <div className="dashboard-comp-gap-sub">Sorted by most recent sighting</div>
                     </div>
-                    {ownBrandVenues.map((g, i) => {
-                      const venueKey = g.venue?.id ?? g.venue?.name ?? i;
-                      const areas = [...new Set(g.sightings.map((s) => s.town?.name).filter(Boolean))];
-                      const isExpanded = expandedCompanyVenueKey === venueKey;
-                      return (
-                        <div key={venueKey} className="dashboard-gap-row-wrap">
-                          <div
-                            className="dashboard-comp-gap-row dashboard-comp-gap-row-clickable"
-                            onClick={() => setExpandedCompanyVenueKey(isExpanded ? null : venueKey)}
-                            role="button"
-                            tabIndex={0}
-                            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setExpandedCompanyVenueKey(isExpanded ? null : venueKey); } }}
-                          >
-                            <div className="dashboard-comp-gap-left">
-                              <div className="dashboard-comp-gap-venue-name">{g.venue.name}</div>
-                              <div className="dashboard-comp-gap-venue-type">
-                                {g.venue.venue_type ? VENUE_TYPE_LABELS[g.venue.venue_type] : ''}
-                              </div>
-                            </div>
-                            <div className="dashboard-comp-gap-pills">
-                              <span className="dashboard-comp-pill green">
-                                <span className="dashboard-comp-pill-num">{g.sightings.length}</span>
-                                {' '}
-                                sighting{g.sightings.length !== 1 ? 's' : ''}
-                              </span>
-                            </div>
-                            <div className="dashboard-comp-gap-last">
-                              <div className="dashboard-cell-time">
-                                {formatTime(g.sightings.reduce((m, s) => (new Date(s.created_at) > new Date(m.created_at) ? s : m), g.sightings[0])?.created_at)}
-                              </div>
-                              <div className="dashboard-comp-gap-who">
-                                {g.sightings.reduce((m, s) => (new Date(s.created_at) > new Date(m.created_at) ? s : m), g.sightings[0])?.submitted_by?.name || '—'}
-                              </div>
-                            </div>
-                          </div>
-                          {isExpanded && (
-                            <div className="dashboard-comp-gap-areas">
-                              <span className="dashboard-comp-gap-areas-label">Areas:</span>
-                              {' '}
-                              {areas.length ? areas.join(', ') : '—'}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
+                    <table className="dashboard-comp-table">
+                      <thead>
+                        <tr>
+                          <th>Venue</th>
+                          <th>Locations</th>
+                          <th>Type</th>
+                          <th>Placement</th>
+                          <th>Activity</th>
+                          <th>Price</th>
+                          <th>Logged by</th>
+                          <th>When</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {ownBrandVenues.map((g, i) => {
+                          const venueKey = g.venue?.id ?? g.venue?.name ?? i;
+                          const latest = g.sightings.reduce(
+                            (m, s) => (new Date(s.created_at) > new Date(m.created_at) ? s : m),
+                            g.sightings[0],
+                          );
+                          const d = latest.data || {};
+                          const venueType = g.venue?.venue_type
+                            ? VENUE_TYPE_LABELS[g.venue.venue_type] || g.venue.venue_type
+                            : '';
+                          const areas = [...new Set(g.sightings.map((s) => s.town?.name).filter(Boolean))];
+                          const isExpanded = expandedCompanyVenueKey === venueKey;
+                          return (
+                            <React.Fragment key={venueKey}>
+                              <tr
+                                className="dashboard-comp-venue-summary-row"
+                                onClick={() => setExpandedCompanyVenueKey(isExpanded ? null : venueKey)}
+                              >
+                                <td>
+                                  <div className="dashboard-venue-name">
+                                    {g.venue.name}
+                                    {areas[0] && (
+                                      <span className="dashboard-comp-gap-venue-type-inline">
+                                        {' '}
+                                        ({areas[0]})
+                                      </span>
+                                    )}
+                                  </div>
+                                </td>
+                                <td>{areas.length ? areas.join(', ') : '—'}</td>
+                                <td className="dashboard-cell-type">{venueType || '—'}</td>
+                                <td>{d.placement || '—'}</td>
+                                <td>
+                                  <div className="dashboard-cell-chips">
+                                    {d.obs && d.obs !== '—' && (
+                                      <span className="dashboard-chip green">{d.obs}</span>
+                                    )}
+                                    {isActivePromo(d.promo) ? (
+                                      <span className="dashboard-chip amber">{d.promo}</span>
+                                    ) : d.promo && String(d.promo).trim().toLowerCase() === 'full price' ? (
+                                      <span className="dashboard-chip dashboard-chip-neutral">Full price</span>
+                                    ) : null}
+                                  </div>
+                                </td>
+                                <td className="dashboard-cell-price">
+                                  {d.price != null && d.price !== '' ? d.price : '—'}
+                                </td>
+                                <td>{latest.submitted_by?.name || latest.submitted_by?.email || '—'}</td>
+                                <td className="dashboard-cell-time">{formatTime(latest.created_at)}</td>
+                              </tr>
+                              {isExpanded && (
+                                <tr className="dashboard-gap-notes-row">
+                                  <td colSpan={8}>
+                                    <div className="dashboard-comp-gap-areas">
+                                      <span className="dashboard-comp-gap-areas-label">All locations:</span>
+                                      {' '}
+                                      {areas.length ? areas.join(', ') : '—'}
+                                    </div>
+                                  </td>
+                                </tr>
+                              )}
+                            </React.Fragment>
+                          );
+                        })}
+                      </tbody>
+                    </table>
                   </div>
                 </>
               )}
