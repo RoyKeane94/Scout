@@ -141,6 +141,16 @@ AWS_S3_CUSTOM_DOMAIN = os.environ.get('AWS_S3_CUSTOM_DOMAIN', '').strip() or Non
 AWS_S3_OBJECT_PARAMETERS = {'CacheControl': 'max-age=86400'}
 AWS_DEFAULT_ACL = 'public-read'  # so photo URLs are viewable without signed URLs
 S3_PHOTOS_ENABLED = bool(AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY and AWS_STORAGE_BUCKET_NAME)
+
+# Outbound email (welcome emails etc.) via TB_* SMTP settings
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = os.environ.get('TB_EMAIL_HOST', '').strip() or 'smtp.office365.com'
+EMAIL_PORT = int(os.environ.get('TB_EMAIL_PORT', '587') or '587')
+EMAIL_HOST_USER = os.environ.get('TB_EMAIL', '').strip()
+EMAIL_HOST_PASSWORD = os.environ.get('TB_PASSWORD', '').strip()
+EMAIL_USE_TLS = True
+DEFAULT_FROM_EMAIL = EMAIL_HOST_USER or 'Scout <noreply@scoutlog.co.uk>'
+
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 AUTH_USER_MODEL = 'scout_api.User'

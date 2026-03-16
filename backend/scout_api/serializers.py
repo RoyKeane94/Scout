@@ -9,6 +9,11 @@ class RegisterOrgSerializer(serializers.Serializer):
     email = serializers.EmailField()
     password = serializers.CharField(write_only=True, validators=[validate_password])
 
+    def validate_email(self, value):
+        if User.objects.filter(username=value).exists():
+            raise serializers.ValidationError('A user with this email is already registered.')
+        return value
+
     def create(self, validated_data):
         org = Organisation.objects.create(name=validated_data['brand_name'])
         user = User.objects.create_user(
@@ -42,6 +47,11 @@ class RegisterMemberSerializer(serializers.Serializer):
         value = value.upper().strip()
         if not Organisation.objects.filter(unique_code=value).exists():
             raise serializers.ValidationError("Invalid code")
+        return value
+
+    def validate_email(self, value):
+        if User.objects.filter(username=value).exists():
+            raise serializers.ValidationError('A user with this email is already registered.')
         return value
 
     def create(self, validated_data):

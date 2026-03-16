@@ -1,4 +1,6 @@
 import base64
+from django.conf import settings
+from django.core.mail import send_mail
 from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework import status
@@ -22,12 +24,52 @@ def get_tokens_for_user(user):
     return {'access': str(refresh.access_token), 'refresh': str(refresh)}
 
 
+def send_welcome_email(user):
+    """Send a simple welcome email from TB_EMAIL SMTP account."""
+    from_email = getattr(settings, 'EMAIL_HOST_USER', '') or getattr(settings, 'DEFAULT_FROM_EMAIL', '')
+    if not from_email:
+        return
+    if not user.email:
+        return
+    org = getattr(user, 'organisation', None)
+    code = getattr(org, 'unique_code', '') if org else ''
+    name = (user.first_name or '').strip() or user.email
+    subject = 'Welcome to Scout'
+    body_lines = [
+        f"Hey {name},",
+        "",
+        "Welcome to Scout!",
+        "",
+        "The most important thing right now is just to start logging. "
+        "The faster you build up a picture of your territory, the more useful Scout becomes.",
+    ]
+    if code:
+        body_lines.append("")
+        body_lines.append(f"Your team code is **{code}**, so share it with anyone you want to add.")
+    body_lines.extend(
+        [
+            "",
+            "I'm Tom and I built Scout. If anything's confusing, broken, or you wish it did something it doesn't, "
+            "please just reply to this email.",
+            "",
+            "Tom",
+        ]
+    )
+    body = "\n".join(body_lines)
+    try:
+        send_mail(subject, body, from_email, [user.email], fail_silently=True)
+    except Exception:
+        # Fail silently by design; errors are non-fatal for registration.
+        pass
+
+
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def register_org(request):
     ser = RegisterOrgSerializer(data=request.data)
     ser.is_valid(raise_exception=True)
     user = ser.save()
+    send_welcome_email(user)
     tokens = get_tokens_for_user(user)
     return Response({'token': tokens['access'], 'org_code': user.organisation.unique_code})
 
@@ -38,6 +80,7 @@ def register_member(request):
     ser = RegisterMemberSerializer(data=request.data)
     ser.is_valid(raise_exception=True)
     user = ser.save()
+    send_welcome_email(user)
     tokens = get_tokens_for_user(user)
     return Response({'token': tokens['access']})
 
