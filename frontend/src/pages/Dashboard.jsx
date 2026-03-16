@@ -692,43 +692,66 @@ export default function Dashboard() {
                 <div className="dashboard-comp-gap-header">
                   <div className="dashboard-comp-gap-title">Gaps by venue</div>
                 </div>
-                {gapsSorted.map((g) => (
-                  <div key={g.id} className="dashboard-gap-row-wrap">
-                    <div className="dashboard-comp-gap-row">
-                      <div className="dashboard-comp-gap-left">
-                        <div className="dashboard-comp-gap-venue-name">
-                          {g.venue?.name || '—'}
-                          {g.venue?.venue_type && (
-                            <span className="dashboard-comp-gap-venue-type-inline">
-                              {' '}
-                              ({VENUE_TYPE_LABELS[g.venue.venue_type] || g.venue.venue_type})
-                            </span>
+                <table className="dashboard-comp-table">
+                  <thead>
+                    <tr>
+                      <th>Venue</th>
+                      <th>Location</th>
+                      <th>Type</th>
+                      <th>Logged by</th>
+                      <th>When</th>
+                      <th>See notes</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {gapsSorted.map((g) => {
+                      const venueType = g.venue?.venue_type
+                        ? VENUE_TYPE_LABELS[g.venue.venue_type] || g.venue.venue_type
+                        : '';
+                      const hasNotes = g.notes && g.notes.trim();
+                      const isExpanded = expandedGapId === g.id;
+                      return (
+                        <>
+                          <tr>
+                            <td>
+                              <div className="dashboard-venue-name">
+                                {g.venue?.name || '—'}
+                              </div>
+                            </td>
+                            <td>{g.town?.name || '—'}</td>
+                            <td>{venueType || '—'}</td>
+                            <td>{g.submitted_by?.name || g.submitted_by?.email || '—'}</td>
+                            <td className="dashboard-cell-time">{formatTime(g.created_at)}</td>
+                            <td>
+                              {hasNotes ? (
+                                <button
+                                  type="button"
+                                  className="dashboard-gap-notes-toggle"
+                                  onClick={() =>
+                                    setExpandedGapId(isExpanded ? null : g.id)
+                                  }
+                                >
+                                  {isExpanded ? 'Hide notes' : 'See notes'}
+                                </button>
+                              ) : (
+                                '—'
+                              )}
+                            </td>
+                          </tr>
+                          {isExpanded && hasNotes && (
+                            <tr className="dashboard-gap-notes-row">
+                              <td colSpan={6}>
+                                <div className="dashboard-gap-notes">
+                                  {g.notes}
+                                </div>
+                              </td>
+                            </tr>
                           )}
-                        </div>
-                      </div>
-                      <div className="dashboard-comp-gap-last">
-                        <div className="dashboard-comp-gap-who">
-                          {g.submitted_by?.name || g.submitted_by?.email || '—'}
-                        </div>
-                        <div className="dashboard-cell-time">{formatTime(g.created_at)}</div>
-                        {g.notes && g.notes.trim() && (
-                          <button
-                            type="button"
-                            className="dashboard-gap-notes-toggle"
-                            onClick={() => setExpandedGapId(expandedGapId === g.id ? null : g.id)}
-                          >
-                            {expandedGapId === g.id ? 'Hide notes' : 'See notes'}
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                    {expandedGapId === g.id && g.notes && g.notes.trim() && (
-                      <div className="dashboard-gap-notes">
-                        {g.notes}
-                      </div>
-                    )}
-                  </div>
-                ))}
+                        </>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
             </div>
           )}

@@ -1427,6 +1427,11 @@
   border-bottom: 1px solid var(--border);
 }
 
+.dashboard-gap-notes-row td {
+  background: var(--grey-3);
+  padding-top: 0;
+}
+
 .dashboard-comp-table-wrap {
   background: var(--white);
   border: 1px solid var(--border);
