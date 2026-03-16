@@ -608,8 +608,16 @@ export default function Dashboard() {
                           {isActivePromo(v.promo) && (
                             <span className="dashboard-chip amber">{v.promo}</span>
                           )}
-                          {v.isGap && <span className="dashboard-chip orange">Contested</span>}
-                          {!v.isGap && <span className="dashboard-chip green">Gap</span>}
+                          {v.isGap && (
+                            <span className="dashboard-chip green">
+                              {ownBrandName} not stocked
+                            </span>
+                          )}
+                          {!v.isGap && (
+                            <span className="dashboard-chip orange">
+                              {ownBrandName} stocked too
+                            </span>
+                          )}
                         </div>
                       </div>
                     ))}
