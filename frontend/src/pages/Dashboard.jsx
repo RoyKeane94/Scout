@@ -68,6 +68,10 @@ export default function Dashboard() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [photoLightboxOpen, setPhotoLightboxOpen] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState(null);
+  const [gapFilter, setGapFilter] = useState('all');
+  const [gapPanelKey, setGapPanelKey] = useState(null);
+  /** 'unreviewed' | 'actioned' — keeps panel rows aligned with the table that opened it */
+  const [gapPanelContext, setGapPanelContext] = useState(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -82,12 +86,16 @@ export default function Dashboard() {
     const onKey = (e) => {
       if (e.key === 'Escape') {
         if (photoLightboxOpen) setPhotoLightboxOpen(false);
+        else if (gapPanelKey) {
+          setGapPanelKey(null);
+          setGapPanelContext(null);
+        }
         else closeDrawer();
       }
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [photoLightboxOpen]);
+  }, [photoLightboxOpen, gapPanelKey]);
 
   useEffect(() => {
     document.body.style.overflow = photoLightboxOpen ? 'hidden' : '';
@@ -280,6 +288,127 @@ export default function Dashboard() {
   const [expandedGapId, setExpandedGapId] = useState(null);
   const [expandedCompanyVenueKey, setExpandedCompanyVenueKey] = useState(null);
 
+  const gapVenueCounts = useMemo(() => {
+    const counts = {};
+    gaps.forEach((g) => {
+      const vid = g.venue?.id;
+      if (vid) counts[vid] = (counts[vid] || 0) + 1;
+    });
+    return counts;
+  }, [gaps]);
+
+  const gapsUnreviewed = useMemo(() => gapsSorted.filter((g) => !g.status), [gapsSorted]);
+  const gapsActioned = useMemo(() => gapsSorted.filter((g) => g.status), [gapsSorted]);
+  const gapsFiltered = useMemo(() => {
+    if (gapFilter === 'all') return gapsActioned;
+    return gapsActioned.filter((g) => g.status === gapFilter);
+  }, [gapsActioned, gapFilter]);
+
+  const getGapGroupKey = (g) => (g?.venue?.id != null ? `venue:${g.venue.id}` : `gap:${g.id}`);
+
+  const dedupeGapsByVenue = (gapList) => {
+    const buckets = new Map();
+    gapList.forEach((g) => {
+      const k = getGapGroupKey(g);
+      if (!buckets.has(k)) buckets.set(k, []);
+      buckets.get(k).push(g);
+    });
+    const groups = Array.from(buckets.values()).map((arr) => {
+      const sorted = [...arr].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+      return { key: getGapGroupKey(sorted[0]), gaps: sorted, primary: sorted[0] };
+    });
+    groups.sort((a, b) => new Date(b.primary.created_at) - new Date(a.primary.created_at));
+    return groups;
+  };
+
+  const gapsUnreviewedGroups = useMemo(() => dedupeGapsByVenue(gapsUnreviewed), [gapsUnreviewed]);
+  const gapsFilteredGroups = useMemo(() => dedupeGapsByVenue(gapsFiltered), [gapsFiltered]);
+
+  const gapsForPanel = useMemo(() => {
+    if (!gapPanelKey || !gapPanelContext) return [];
+    let list;
+    if (gapPanelKey.startsWith('venue:')) {
+      const vid = Number(gapPanelKey.slice(6), 10);
+      list = gaps.filter((g) => g.venue?.id === vid);
+    } else {
+      const gid = Number(gapPanelKey.slice(4), 10);
+      list = gaps.filter((g) => g.id === gid);
+    }
+    if (gapPanelContext === 'unreviewed') list = list.filter((g) => !g.status);
+    if (gapPanelContext === 'actioned') {
+      list = list.filter((g) => g.status);
+      if (gapFilter !== 'all') list = list.filter((g) => g.status === gapFilter);
+    }
+    return [...list].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+  }, [gapPanelKey, gapPanelContext, gapFilter, gaps]);
+
+  useEffect(() => {
+    if (gapPanelKey && gapPanelContext && gapsForPanel.length === 0) {
+      setGapPanelKey(null);
+      setGapPanelContext(null);
+    }
+  }, [gapPanelKey, gapPanelContext, gapsForPanel.length]);
+
+  const gapPanelPrimary = gapsForPanel[0];
+  const panelPursueGaps = useMemo(
+    () => gapsForPanel.filter((g) => g.status === 'pursue'),
+    [gapsForPanel],
+  );
+  const stageRefGap = panelPursueGaps[0] || gapPanelPrimary;
+
+  const updateGapLocal = (id, fields) => {
+    setGaps((prev) => prev.map((g) => (g.id === id ? { ...g, ...fields } : g)));
+  };
+
+  const patchGap = (id, fields) => {
+    updateGapLocal(id, fields);
+    api.patch(`gaps/${id}/`, fields).catch(() => {});
+  };
+
+  const handleGapDecisionGroup = (group, decision, e) => {
+    if (e) e.stopPropagation();
+    const allSame = group.gaps.every((g) => g.status === decision);
+    const newStatus = allSame ? null : decision;
+    group.gaps.forEach((g) => {
+      const stage = newStatus === 'pursue' ? g.stage || null : null;
+      patchGap(g.id, { status: newStatus, stage });
+    });
+  };
+
+  const handleGapStageGroup = (group, stage) => {
+    const pursueGaps = group.gaps.filter((g) => g.status === 'pursue');
+    if (!pursueGaps.length) return;
+    const ref = pursueGaps[0];
+    const newStage = ref.stage === stage ? null : stage;
+    pursueGaps.forEach((g) => patchGap(g.id, { stage: newStage }));
+  };
+
+  const handleGapDecisionPanel = (decision) => {
+    if (!gapsForPanel.length) return;
+    const allSame = gapsForPanel.every((g) => g.status === decision);
+    const newStatus = allSame ? null : decision;
+    gapsForPanel.forEach((g) => {
+      const stage = newStatus === 'pursue' ? g.stage || null : null;
+      patchGap(g.id, { status: newStatus, stage });
+    });
+  };
+
+  const handleGapStagePanel = (stage) => {
+    if (!panelPursueGaps.length) return;
+    const ref = panelPursueGaps[0];
+    const newStage = ref.stage === stage ? null : stage;
+    panelPursueGaps.forEach((g) => patchGap(g.id, { stage: newStage }));
+  };
+
+  const openGapPanelFromGroup = (group, context) => {
+    setGapPanelKey(group.key);
+    setGapPanelContext(context);
+  };
+  const closeGapPanel = () => {
+    setGapPanelKey(null);
+    setGapPanelContext(null);
+  };
+
   const submitterCounts = useMemo(() => {
     const counts = {};
     sightings.forEach((s) => {
@@ -356,28 +485,31 @@ export default function Dashboard() {
           <button
             type="button"
             className={`dashboard-view-tab ${page === 'sightings' ? 'active' : ''}`}
-            onClick={() => { setPage('sightings'); closeDrawer(); }}
+            onClick={() => { setPage('sightings'); closeDrawer(); closeGapPanel(); }}
           >
             Sightings
+            {sightings.length > 0 && <span className="dashboard-tab-count">{sightings.length}</span>}
           </button>
           <button
             type="button"
             className={`dashboard-view-tab ${page === 'competitors' ? 'active' : ''}`}
-            onClick={() => { setPage('competitors'); closeDrawer(); }}
+            onClick={() => { setPage('competitors'); closeDrawer(); closeGapPanel(); }}
           >
             Competitors
+            {competitorSightings.length > 0 && <span className="dashboard-tab-count">{competitorSightings.length}</span>}
           </button>
           <button
             type="button"
             className={`dashboard-view-tab ${page === 'gaps' ? 'active' : ''}`}
-            onClick={() => { setPage('gaps'); closeDrawer(); }}
+            onClick={() => { setPage('gaps'); closeDrawer(); closeGapPanel(); }}
           >
             Gaps
+            {gaps.length > 0 && <span className="dashboard-tab-count">{gaps.length}</span>}
           </button>
           <button
             type="button"
             className={`dashboard-view-tab ${page === 'company' ? 'active' : ''}`}
-            onClick={() => { setPage('company'); closeDrawer(); }}
+            onClick={() => { setPage('company'); closeDrawer(); closeGapPanel(); }}
           >
             {ownBrandName}
           </button>
@@ -681,81 +813,216 @@ export default function Dashboard() {
 
           {page === 'gaps' && (
             <div className="dashboard-comp-wrap">
-              <div className="dashboard-comp-stats">
-                <div className="dashboard-stat-card">
-                  <div className="dashboard-stat-num">{gapsSorted.length}</div>
-                  <div className="dashboard-stat-label">Gaps logged</div>
+              <div className="dashboard-gap-stats">
+                <div className="dashboard-gap-stat stat-review">
+                  <div className="dashboard-gap-stat-num">{gapsUnreviewed.length}</div>
+                  <div className="dashboard-gap-stat-label">{gapsUnreviewed.length === 1 ? 'Needs' : 'Need'} review</div>
+                </div>
+                <div className="dashboard-gap-stat stat-pursue">
+                  <div className="dashboard-gap-stat-num">{gapsActioned.filter((g) => g.status === 'pursue').length}</div>
+                  <div className="dashboard-gap-stat-label">Pursuing</div>
+                </div>
+                <div className="dashboard-gap-stat stat-revisit">
+                  <div className="dashboard-gap-stat-num">{gapsActioned.filter((g) => g.status === 'revisit').length}</div>
+                  <div className="dashboard-gap-stat-label">Revisit</div>
+                </div>
+                <div className="dashboard-gap-stat stat-skip">
+                  <div className="dashboard-gap-stat-num">{gapsActioned.filter((g) => g.status === 'skip').length}</div>
+                  <div className="dashboard-gap-stat-label">Not pursuing</div>
                 </div>
               </div>
 
-              <div className="dashboard-comp-gap-table">
-                <div className="dashboard-comp-gap-header">
-                  <div className="dashboard-comp-gap-title">Gaps by venue</div>
+              {/* Needs review */}
+              <div className="dashboard-gap-section-head">
+                <div className="dashboard-gap-section-title">
+                  {gapsUnreviewed.length === 1 ? 'Needs' : 'Need'} review <span className="dashboard-gap-badge review">{gapsUnreviewed.length}</span>
                 </div>
-                <table className="dashboard-comp-table">
-                  <thead>
-                    <tr>
-                      <th>Venue</th>
-                      <th>Type</th>
-                      <th>Logged by</th>
-                      <th>When</th>
-                      <th>See notes</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {gapsSorted.map((g) => {
-                      const venueType = g.venue?.venue_type
-                        ? VENUE_TYPE_LABELS[g.venue.venue_type] || g.venue.venue_type
-                        : '';
-                      const hasNotes = g.notes && g.notes.trim();
-                      const isExpanded = expandedGapId === g.id;
-                      return (
-                        <>
-                          <tr>
+              </div>
+              <div className="dashboard-comp-table-wrap">
+                {gapsUnreviewed.length === 0 ? (
+                  <div className="dashboard-gap-empty ok">All gaps reviewed</div>
+                ) : (
+                  <table className="dashboard-gap-triage-table">
+                    <thead>
+                      <tr>
+                        <th>Venue</th>
+                        <th>Type</th>
+                        <th>Logged by</th>
+                        <th>When</th>
+                        <th>Decision</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {gapsUnreviewedGroups.map((group) => {
+                        const g = group.primary;
+                        const venueType = g.venue?.venue_type ? VENUE_TYPE_LABELS[g.venue.venue_type] || g.venue.venue_type : '';
+                        const venueCount = g.venue?.id ? gapVenueCounts[g.venue.id] || group.gaps.length : group.gaps.length;
+                        const hasNotesAny = group.gaps.some((x) => x.notes?.trim());
+                        const showTownInline = group.gaps.length === 1 && g.town?.name;
+                        return (
+                          <tr
+                            key={group.key}
+                            className={gapPanelKey === group.key ? 'gap-row-selected' : ''}
+                            onClick={() => openGapPanelFromGroup(group, 'unreviewed')}
+                          >
                             <td>
-                              <div className="dashboard-venue-name">
+                              <div className="dashboard-gap-venue-cell">
                                 {g.venue?.name || '—'}
-                                {g.town?.name && (
-                                  <span className="dashboard-comp-gap-venue-type-inline">
-                                    {' '}
-                                    ({g.town.name})
-                                  </span>
+                                {showTownInline && (
+                                  <span className="dashboard-comp-gap-venue-type-inline"> ({g.town.name})</span>
                                 )}
+                                <span className={`dashboard-gap-notes-dot${hasNotesAny ? ' has' : ''}`} title={hasNotesAny ? 'Has notes' : 'No notes'} />
+                                {venueCount > 1 && <span className="dashboard-gap-venue-count">×{venueCount}</span>}
                               </div>
                             </td>
-                            <td>{venueType || '—'}</td>
+                            <td className="dashboard-cell-type">{venueType || '—'}</td>
                             <td>{g.submitted_by?.name || g.submitted_by?.email || '—'}</td>
                             <td className="dashboard-cell-time">{formatTime(g.created_at)}</td>
-                            <td>
-                              {hasNotes ? (
-                                <button
-                                  type="button"
-                                  className="dashboard-gap-notes-toggle"
-                                  onClick={() =>
-                                    setExpandedGapId(isExpanded ? null : g.id)
-                                  }
-                                >
-                                  {isExpanded ? 'Hide notes' : 'See notes'}
+                            <td onClick={(e) => e.stopPropagation()}>
+                              <div className="dashboard-gap-triage-btns">
+                                <button type="button" className="dashboard-gap-triage-btn pursue" onClick={(e) => handleGapDecisionGroup(group, 'pursue', e)}>
+                                  <svg width="11" height="11" fill="none" viewBox="0 0 14 14"><path d="M2 7l4 4 6-7" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                                  Pursue
                                 </button>
-                              ) : (
-                                '—'
-                              )}
+                                <button type="button" className="dashboard-gap-triage-btn revisit" onClick={(e) => handleGapDecisionGroup(group, 'revisit', e)}>
+                                  <svg width="11" height="11" fill="none" viewBox="0 0 14 14"><path d="M7 3v4l2.5 2.5M12 7A5 5 0 1 1 2 7a5 5 0 0 1 10 0z" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                                  Revisit
+                                </button>
+                                <button type="button" className="dashboard-gap-triage-btn skip" onClick={(e) => handleGapDecisionGroup(group, 'skip', e)}>
+                                  <svg width="11" height="11" fill="none" viewBox="0 0 14 14"><path d="M2.5 2.5l9 9M11.5 2.5l-9 9" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/></svg>
+                                  Pass
+                                </button>
+                              </div>
                             </td>
                           </tr>
-                          {isExpanded && hasNotes && (
-                            <tr className="dashboard-gap-notes-row">
-                              <td colSpan={5}>
-                                <div className="dashboard-gap-notes">
-                                  {g.notes}
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+
+              {/* Actioned */}
+              <div className="dashboard-gap-section-head">
+                <div className="dashboard-gap-section-title">
+                  Actioned <span className="dashboard-gap-badge neutral">{gapsActioned.length}</span>
+                </div>
+                <div className="dashboard-gap-filter-chips">
+                  {[
+                    { key: 'all', label: 'All' },
+                    { key: 'pursue', label: 'Pursue' },
+                    { key: 'revisit', label: 'Revisit' },
+                    { key: 'skip', label: 'Not pursuing' },
+                  ].map((f) => (
+                    <button
+                      key={f.key}
+                      type="button"
+                      className={`dashboard-gap-filter-chip${gapFilter === f.key ? ` active-${f.key}` : ''}`}
+                      onClick={() => setGapFilter(f.key)}
+                    >
+                      {f.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="dashboard-comp-table-wrap">
+                {gapsFiltered.length === 0 ? (
+                  <div className="dashboard-gap-empty">No actioned gaps yet</div>
+                ) : (
+                  <table className="dashboard-gap-triage-table">
+                    <thead>
+                      <tr>
+                        <th>Venue</th>
+                        <th>Type</th>
+                        <th>Logged by</th>
+                        <th>When</th>
+                        <th>Decision</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {gapsFilteredGroups.map((group) => {
+                        const g = group.primary;
+                        const venueType = g.venue?.venue_type ? VENUE_TYPE_LABELS[g.venue.venue_type] || g.venue.venue_type : '';
+                        const venueCount = g.venue?.id ? gapVenueCounts[g.venue.id] || group.gaps.length : group.gaps.length;
+                        const isDeclined = g.status === 'pursue' && g.stage === 'declined';
+                        const showStepper = g.status === 'pursue' && !isDeclined;
+                        const progressStages = ['contacted', 'visit_booked', 'now_stocking'];
+                        const activeIdx = g.stage ? progressStages.indexOf(g.stage) : -1;
+                        const showTownInline = group.gaps.length === 1 && g.town?.name;
+
+                        let badgeEl;
+                        if (isDeclined) {
+                          badgeEl = (
+                            <span className="gap-badge-text gap-badge-declined" onClick={() => handleGapDecisionGroup(group, 'pursue')} title="Click to remove">
+                              Declined
+                            </span>
+                          );
+                        } else if (g.status === 'pursue') {
+                          badgeEl = <span className="gap-badge-text gap-badge-pursue" onClick={() => handleGapDecisionGroup(group, 'pursue')} title="Click to remove">Pursue</span>;
+                        } else if (g.status === 'revisit') {
+                          badgeEl = <span className="gap-badge-text gap-badge-revisit" onClick={() => handleGapDecisionGroup(group, 'revisit')} title="Click to remove">Revisit</span>;
+                        } else {
+                          badgeEl = (
+                            <span className="gap-badge-text gap-badge-skip" onClick={() => handleGapDecisionGroup(group, 'skip')} title="Click to remove">
+                              Not pursuing
+                            </span>
+                          );
+                        }
+
+                        return (
+                          <React.Fragment key={group.key}>
+                            <tr
+                              className={`${gapPanelKey === group.key ? 'gap-row-selected' : ''}${showStepper ? ' gap-row-has-stepper' : ''}`}
+                              onClick={() => openGapPanelFromGroup(group, 'actioned')}
+                            >
+                              <td>
+                                <div className="dashboard-gap-venue-cell" style={{ fontWeight: 400, opacity: 0.85 }}>
+                                  {g.venue?.name || '—'}
+                                  {showTownInline && (
+                                    <span className="dashboard-comp-gap-venue-type-inline"> ({g.town.name})</span>
+                                  )}
+                                  {venueCount > 1 && <span className="dashboard-gap-venue-count">×{venueCount}</span>}
                                 </div>
                               </td>
+                              <td className="dashboard-cell-type">{venueType || '—'}</td>
+                              <td>{g.submitted_by?.name || g.submitted_by?.email || '—'}</td>
+                              <td className="dashboard-cell-time">{formatTime(g.created_at)}</td>
+                              <td onClick={(e) => e.stopPropagation()}>{badgeEl}</td>
                             </tr>
-                          )}
-                        </>
-                      );
-                    })}
-                  </tbody>
-                </table>
+                            {showStepper && (
+                              <tr className="gap-stepper-row" onClick={(e) => e.stopPropagation()}>
+                                <td colSpan={4} className="gap-stepper-row-spacer" aria-hidden="true" />
+                                <td className="gap-stepper-row-decision">
+                                  <div className="gap-stepper gap-stepper-table">
+                                    {progressStages.map((s, i) => {
+                                      const done = activeIdx >= 0 && i < activeIdx;
+                                      const active = i === activeIdx;
+                                      const stageLabel = { contacted: 'Contacted', visit_booked: 'Visit booked', now_stocking: 'Now stocking' }[s];
+                                      return (
+                                        <React.Fragment key={s}>
+                                          {i > 0 && <div className={`gap-stepper-line${done || active ? ' done' : ''}`} />}
+                                          <button type="button" className={`gap-stepper-step${active ? ' active' : ''}${done ? ' done' : ''}`} onClick={() => handleGapStageGroup(group, s)}>
+                                            <span className="gap-stepper-circ">{done ? '✓' : (i + 1)}</span>
+                                            <span className="gap-stepper-lbl">{stageLabel}</span>
+                                          </button>
+                                        </React.Fragment>
+                                      );
+                                    })}
+                                    <div className="gap-stepper-sep" />
+                                    <button type="button" className={`gap-stepper-declined${g.stage === 'declined' ? ' active' : ''}`} onClick={() => handleGapStageGroup(group, 'declined')}>
+                                      <span className="gap-stepper-declined-circ" aria-hidden>×</span>
+                                      <span className="gap-stepper-declined-lbl">Declined</span>
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            )}
+                          </React.Fragment>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                )}
               </div>
             </div>
           )}
@@ -942,6 +1209,114 @@ export default function Dashboard() {
         onClick={closeDrawer}
         aria-hidden
       />
+
+      {/* Gap panel overlay */}
+      {gapPanelKey && (
+        <div
+          className={`dashboard-drawer-overlay ${gapPanelKey ? 'show' : ''}`}
+          onClick={closeGapPanel}
+          aria-hidden
+        />
+      )}
+
+      {/* Gap side panel */}
+      <div className={`dashboard-gap-panel ${gapPanelKey ? 'open' : ''}`}>
+        <div className="dashboard-gap-panel-top">
+          <div>
+            <div className="dashboard-gap-panel-venue">{gapPanelPrimary?.venue?.name || '—'}</div>
+            <div className="dashboard-gap-panel-meta">
+              {gapPanelPrimary?.venue?.venue_type ? (VENUE_TYPE_LABELS[gapPanelPrimary.venue.venue_type] || gapPanelPrimary.venue.venue_type) : ''}
+              {gapsForPanel.length === 1 && gapPanelPrimary?.town?.name ? ` · ${gapPanelPrimary.town.name}` : ''}
+              {gapsForPanel.length > 1 ? ` · ${gapsForPanel.length} locations` : ''}
+              {' · '}
+              {gapPanelPrimary?.submitted_by?.name || gapPanelPrimary?.submitted_by?.email || '—'}
+              {' · '}
+              {formatTime(gapPanelPrimary?.created_at)}
+            </div>
+          </div>
+          <button type="button" className="dashboard-gap-panel-close" onClick={closeGapPanel} aria-label="Close">
+            <svg width="12" height="12" fill="none" viewBox="0 0 14 14"><path d="M1 1l12 12M13 1L1 13" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg>
+          </button>
+        </div>
+        <div className="dashboard-gap-panel-body">
+          <div className="dashboard-gap-panel-section">
+            <div className="dashboard-gap-panel-label">{gapsForPanel.length > 1 ? 'Locations' : 'Location'}</div>
+            <ul className="dashboard-gap-panel-locations">
+              {gapsForPanel.map((loc) => (
+                <li key={loc.id} className="dashboard-gap-panel-location-row">
+                  <div className="dashboard-gap-panel-loc-main">
+                    <span className="dashboard-gap-panel-loc-place">{loc.town?.name || '—'}</span>
+                    <span className="dashboard-gap-panel-loc-when">{formatTime(loc.created_at)}</span>
+                  </div>
+                  {loc.notes?.trim() ? (
+                    <div className="dashboard-gap-panel-loc-notes">{loc.notes.trim()}</div>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div className="dashboard-gap-panel-section">
+            <div className="dashboard-gap-panel-label">Decision</div>
+            <div className="dashboard-gap-panel-triage">
+              <button
+                type="button"
+                className={`dashboard-gap-panel-triage-btn pursue${gapsForPanel.length && gapsForPanel.every((x) => x.status === 'pursue') ? ' sel' : ''}`}
+                onClick={() => gapPanelKey && handleGapDecisionPanel('pursue')}
+              >
+                <svg width="11" height="11" fill="none" viewBox="0 0 14 14"><path d="M2 7l4 4 6-7" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                Pursue
+              </button>
+              <button
+                type="button"
+                className={`dashboard-gap-panel-triage-btn revisit${gapsForPanel.length && gapsForPanel.every((x) => x.status === 'revisit') ? ' sel' : ''}`}
+                onClick={() => gapPanelKey && handleGapDecisionPanel('revisit')}
+              >
+                <svg width="11" height="11" fill="none" viewBox="0 0 14 14"><path d="M7 3v4l2.5 2.5M12 7A5 5 0 1 1 2 7a5 5 0 0 1 10 0z" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                Revisit
+              </button>
+              <button
+                type="button"
+                className={`dashboard-gap-panel-triage-btn skip${gapsForPanel.length && gapsForPanel.every((x) => x.status === 'skip') ? ' sel' : ''}`}
+                onClick={() => gapPanelKey && handleGapDecisionPanel('skip')}
+              >
+                <svg width="11" height="11" fill="none" viewBox="0 0 14 14"><path d="M2.5 2.5l9 9M11.5 2.5l-9 9" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/></svg>
+                Pass
+              </button>
+            </div>
+          </div>
+          {panelPursueGaps.length > 0 && (() => {
+            const progressStages = ['contacted', 'visit_booked', 'now_stocking'];
+            const stageLabels = { contacted: 'Contacted', visit_booked: 'Visit booked', now_stocking: 'Now stocking' };
+            const ref = stageRefGap;
+            const activeIdx = ref?.stage && progressStages.includes(ref.stage) ? progressStages.indexOf(ref.stage) : -1;
+            return (
+              <div className="dashboard-gap-panel-section">
+                <div className="dashboard-gap-panel-label">Pursuit stage</div>
+                <div className="gap-stepper gap-stepper-panel">
+                  {progressStages.map((s, i) => {
+                    const done = activeIdx >= 0 && i < activeIdx;
+                    const active = i === activeIdx;
+                    return (
+                      <React.Fragment key={s}>
+                        {i > 0 && <div className={`gap-stepper-line${done || active ? ' done' : ''}`} />}
+                        <button type="button" className={`gap-stepper-step${active ? ' active' : ''}${done ? ' done' : ''}`} onClick={() => gapPanelKey && handleGapStagePanel(s)}>
+                          <span className="gap-stepper-circ">{done ? '✓' : (i + 1)}</span>
+                          <span className="gap-stepper-lbl">{stageLabels[s]}</span>
+                        </button>
+                      </React.Fragment>
+                    );
+                  })}
+                  <div className="gap-stepper-sep" />
+                  <button type="button" className={`gap-stepper-declined${ref?.stage === 'declined' ? ' active' : ''}`} onClick={() => gapPanelKey && handleGapStagePanel('declined')}>
+                    <span className="gap-stepper-declined-circ" aria-hidden>×</span>
+                    <span className="gap-stepper-declined-lbl">Declined</span>
+                  </button>
+                </div>
+              </div>
+            );
+          })()}
+        </div>
+      </div>
 
       {/* Drawer */}
       <div className={`dashboard-drawer ${drawerOpen ? 'open' : ''}`}>

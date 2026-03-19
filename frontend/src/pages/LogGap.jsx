@@ -100,6 +100,7 @@ export default function LogGap() {
     }
     setSubmitting(true);
     const payload = { lat, lng, notes: notes.trim() };
+    if (venueName) payload.town_name = venueName;
     if (hasSelectedVenue) {
       payload.venue_id = parseInt(venueId, 10);
     } else {
