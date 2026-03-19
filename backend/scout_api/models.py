@@ -91,12 +91,26 @@ class ErrorLog(models.Model):
 
 class Gap(models.Model):
     """A venue where there are no direct competitors (gap opportunity)."""
+    STATUS_CHOICES = [
+        ('pursue', 'Pursue'),
+        ('revisit', 'Revisit'),
+        ('skip', 'Not pursuing'),
+    ]
+    STAGE_CHOICES = [
+        ('contacted', 'Contacted'),
+        ('visit_booked', 'Visit booked'),
+        ('now_stocking', 'Now stocking'),
+        ('declined', 'Declined'),
+    ]
     organisation = models.ForeignKey(Organisation, on_delete=models.CASCADE)
     submitted_by = models.ForeignKey(User, on_delete=models.CASCADE)
     venue = models.ForeignKey(Venue, on_delete=models.CASCADE)
     lat = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
     lng = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+    town = models.ForeignKey('Town', on_delete=models.SET_NULL, null=True, blank=True, related_name='gaps')
     notes = models.TextField(blank=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, null=True, blank=True)
+    stage = models.CharField(max_length=20, choices=STAGE_CHOICES, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
 

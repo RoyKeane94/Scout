@@ -391,3 +391,32 @@ def gap_list(request):
         return Response(ser.errors, status=status.HTTP_400_BAD_REQUEST)
     gap = ser.save()
     return Response(GapSerializer(gap).data, status=status.HTTP_201_CREATED)
+
+
+@api_view(['PATCH', 'DELETE'])
+@permission_classes([IsAuthenticated])
+def gap_detail(request, gap_id):
+    org = request.user.organisation
+    if not org:
+        return Response({'detail': 'No organisation'}, status=status.HTTP_400_BAD_REQUEST)
+    try:
+        gap = Gap.objects.select_related('venue', 'town', 'submitted_by').get(pk=gap_id, organisation=org)
+    except Gap.DoesNotExist:
+        return Response({'detail': 'Not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'DELETE':
+        gap.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    allowed = {'status', 'stage'}
+    for key in allowed:
+        if key in request.data:
+            val = request.data[key]
+            if val == '' or val is None:
+                setattr(gap, key, None)
+            else:
+                setattr(gap, key, val)
+    if gap.status != 'pursue':
+        gap.stage = None
+    gap.save()
+    return Response(GapSerializer(gap).data)

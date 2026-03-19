@@ -158,11 +158,12 @@ class BrandBulkSerializer(serializers.Serializer):
 
 class GapSerializer(serializers.ModelSerializer):
     venue = VenueSerializer(read_only=True)
+    town = TownSerializer(read_only=True)
     submitted_by = UserListSerializer(read_only=True)
 
     class Meta:
         model = Gap
-        fields = ['id', 'venue', 'lat', 'lng', 'notes', 'created_at', 'submitted_by']
+        fields = ['id', 'venue', 'town', 'lat', 'lng', 'notes', 'status', 'stage', 'created_at', 'submitted_by']
 
 
 class GapCreateSerializer(serializers.Serializer):
@@ -171,6 +172,7 @@ class GapCreateSerializer(serializers.Serializer):
     venue_id = serializers.IntegerField(required=False, allow_null=True)
     venue_name = serializers.CharField(max_length=255, required=False, allow_blank=True)
     venue_type = serializers.ChoiceField(choices=Venue.VENUE_TYPES, required=False)
+    town_name = serializers.CharField(required=False, allow_blank=True, default='')
     notes = serializers.CharField(required=False, allow_blank=True, default='')
 
     def validate(self, data):
@@ -197,10 +199,15 @@ class GapCreateSerializer(serializers.Serializer):
             )
         lat = validated_data.get('lat')
         lng = validated_data.get('lng')
+        town = None
+        name = (validated_data.get('town_name') or '').strip()
+        if name:
+            town, _ = Town.objects.get_or_create(organisation=org, name=name[:255])
         return Gap.objects.create(
             organisation=org,
             submitted_by=user,
             venue=venue,
+            town=town,
             lat=Decimal(str(lat)) if lat is not None else None,
             lng=Decimal(str(lng)) if lng is not None else None,
             notes=(validated_data.get('notes') or '').strip(),

@@ -22,4 +22,5 @@ urlpatterns = [
     path('sightings/<int:sighting_id>/photo/', views.sighting_photo),
     path('sightings/<int:sighting_id>/', views.sighting_detail),
     path('gaps/', views.gap_list),
+    path('gaps/<int:gap_id>/', views.gap_detail),
 ]
