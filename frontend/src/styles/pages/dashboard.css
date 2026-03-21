@@ -37,15 +37,96 @@
   min-height: auto;
   flex-shrink: 0;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  flex-wrap: wrap;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 20px;
   /* Full width: break out of .dashboard-page padding */
   margin-left: -12px;
   margin-right: -24px;
   width: calc(100% + 36px);
   box-sizing: border-box;
+}
+
+.dashboard-page-header-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+/* Global KPI row (above tabs) — five gap-style cards; min-height matches .dashboard-gap-stat, row height shared via grid stretch */
+.dashboard-overview-stats {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+  align-items: stretch;
+}
+
+.dashboard-overview-stats .dashboard-gap-stat {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  min-height: 88px;
+  /* Tighter top/sides, slightly more bottom padding so subtext descenders aren’t clipped */
+  padding: 8px 14px 12px;
+  overflow: visible;
+}
+
+.dashboard-overview-stats .dashboard-gap-stat-num {
+  font-size: 30px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.dashboard-overview-stats .dashboard-gap-stat-num-currency {
+  font-size: 28px;
+}
+
+.dashboard-overview-stats .dashboard-gap-stat-label {
+  margin-top: 3px;
+  flex-shrink: 0;
+}
+
+.dashboard-gap-stat.stat-plain {
+  background: var(--white);
+  border: 1px solid var(--border);
+}
+
+.dashboard-gap-stat.stat-plain .dashboard-gap-stat-num {
+  color: var(--navy);
+}
+
+.dashboard-gap-stat.stat-plain .dashboard-gap-stat-label {
+  color: var(--navy);
+  opacity: 0.7;
+}
+
+.dashboard-gap-stat.has-sub {
+  display: flex;
+  flex-direction: column;
+}
+
+.dashboard-overview-stats .dashboard-gap-stat.has-sub .dashboard-gap-stat-sub {
+  margin-top: auto;
+}
+
+.dashboard-gap-stat-sub {
+  margin-top: auto;
+  padding-top: 10px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: var(--text-xs);
+  color: var(--grey-1);
+  line-height: 1.35;
+}
+
+.dashboard-overview-stats .dashboard-gap-stat-sub {
+  padding-top: 4px;
+  font-size: 10px;
+  line-height: 1.35;
+  flex-shrink: 0;
+  min-width: 0;
+  word-wrap: break-word;
 }
 
 .dashboard-view-tabs {
@@ -2664,7 +2745,8 @@
   }
 
   .dashboard-gap-stats,
-  .dashboard-company-gap-stats {
+  .dashboard-company-gap-stats,
+  .dashboard-overview-stats {
     grid-template-columns: 1fr 1fr;
     gap: 8px;
   }

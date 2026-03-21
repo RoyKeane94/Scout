@@ -71,6 +71,66 @@ function formatDateGroup(createdAt) {
   return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
 }
 
+/**
+ * Global KPI strip above dashboard tabs — same card pattern as Gaps (Bebas num, DM Mono label, optional subline).
+ */
+function DashboardOverviewStats({
+  sightingsCount,
+  lastSightingCreatedAt,
+  contestedVenuesCount,
+  ownBrandName,
+  gapsUnreviewedCount,
+  gapsPursuingCount,
+  gapsNotPursuingCount,
+  stockistVenueCount,
+  avgRetailPrice,
+}) {
+  const lastLine = lastSightingCreatedAt
+    ? `Last: ${formatDateGroup(lastSightingCreatedAt)}`
+    : 'No sightings yet';
+  const gapSubLine =
+    gapsPursuingCount === 0 && gapsNotPursuingCount === 0
+      ? 'No actioned gaps yet'
+      : `${gapsPursuingCount} pursuing · ${gapsNotPursuingCount} not pursuing`;
+
+  return (
+    <div className="dashboard-overview-stats" aria-label="Dashboard summary">
+      <div className="dashboard-gap-stat stat-plain has-sub">
+        <div className="dashboard-gap-stat-num">{sightingsCount}</div>
+        <div className="dashboard-gap-stat-label">Sightings</div>
+        <div className="dashboard-gap-stat-sub">{lastLine}</div>
+      </div>
+      <div className="dashboard-gap-stat stat-revisit has-sub">
+        <div className="dashboard-gap-stat-num">{contestedVenuesCount}</div>
+        <div className="dashboard-gap-stat-label">Contested venues</div>
+        <div className="dashboard-gap-stat-sub">
+          Competitors in, {ownBrandName} not
+        </div>
+      </div>
+      <div
+        className="dashboard-gap-stat stat-navy has-sub"
+        title={`Mean retail for ${ownBrandName} only — all logged ${ownBrandName} sightings where a price was entered`}
+      >
+        <div className="dashboard-gap-stat-num dashboard-gap-stat-num-currency">
+          {avgRetailPrice != null ? `£${avgRetailPrice.toFixed(2)}` : '—'}
+        </div>
+        <div className="dashboard-gap-stat-label">{ownBrandName} avg retail</div>
+        <div className="dashboard-gap-stat-sub">{ownBrandName} only · logged prices</div>
+      </div>
+      <div className="dashboard-gap-stat stat-review has-sub">
+        <div className="dashboard-gap-stat-num">{gapsUnreviewedCount}</div>
+        <div className="dashboard-gap-stat-label">Gaps to review</div>
+        <div className="dashboard-gap-stat-sub">{gapSubLine}</div>
+      </div>
+      <div className="dashboard-gap-stat stat-pursue has-sub">
+        <div className="dashboard-gap-stat-num">{stockistVenueCount}</div>
+        <div className="dashboard-gap-stat-label">Venues stocking {ownBrandName}</div>
+        <div className="dashboard-gap-stat-sub">Own-brand stockists</div>
+      </div>
+    </div>
+  );
+}
+
 export default function Dashboard() {
   const [sightings, setSightings] = useState([]);
   const [brands, setBrands] = useState([]);
@@ -348,6 +408,20 @@ export default function Dashboard() {
 
   const gapsUnreviewed = useMemo(() => gapsSorted.filter((g) => !g.status), [gapsSorted]);
   const gapsActioned = useMemo(() => gapsSorted.filter((g) => g.status), [gapsSorted]);
+  const gapsPursuingCount = useMemo(
+    () => gapsActioned.filter((g) => g.status === 'pursue').length,
+    [gapsActioned],
+  );
+  const gapsNotPursuingCount = useMemo(
+    () => gapsActioned.filter((g) => g.status === 'skip').length,
+    [gapsActioned],
+  );
+  const dashboardLatestSighting = useMemo(() => {
+    if (!sightings.length) return null;
+    return sightings.reduce((a, b) =>
+      new Date(b.created_at) > new Date(a.created_at) ? b : a,
+    );
+  }, [sightings]);
   const gapsFiltered = useMemo(() => {
     if (gapFilter === 'all') return gapsActioned;
     if (gapFilter === 'declined')
@@ -537,64 +611,77 @@ export default function Dashboard() {
   return (
     <div className="page dashboard-page">
       <div className="dashboard-page-header">
-        <div className="dashboard-view-tabs">
-          <button
-            type="button"
-            className={`dashboard-view-tab ${page === 'sightings' ? 'active' : ''}`}
-            onClick={() => { setPage('sightings'); closeDrawer(); closeGapPanel(); setCompanyVenuePanelKey(null); }}
-          >
-            Sightings
-            {sightings.length > 0 && <span className="dashboard-tab-count">{sightings.length}</span>}
-          </button>
-          <button
-            type="button"
-            className={`dashboard-view-tab ${page === 'competitors' ? 'active' : ''}`}
-            onClick={() => { setPage('competitors'); closeDrawer(); closeGapPanel(); setCompanyVenuePanelKey(null); }}
-          >
-            Competitors
-            {competitorSightings.length > 0 && <span className="dashboard-tab-count">{competitorSightings.length}</span>}
-          </button>
-          <button
-            type="button"
-            className={`dashboard-view-tab ${page === 'gaps' ? 'active' : ''}`}
-            onClick={() => { setPage('gaps'); closeDrawer(); closeGapPanel(); setCompanyVenuePanelKey(null); }}
-          >
-            Gaps
-            {gaps.length > 0 && <span className="dashboard-tab-count">{gaps.length}</span>}
-          </button>
-          <button
-            type="button"
-            className={`dashboard-view-tab ${page === 'company' ? 'active' : ''}`}
-            onClick={() => { setPage('company'); closeDrawer(); closeGapPanel(); }}
-          >
-            {ownBrandName}
-          </button>
-        </div>
-        {page === 'sightings' && (
-          <div className="dashboard-seg-control">
+        <DashboardOverviewStats
+          sightingsCount={sightings.length}
+          lastSightingCreatedAt={dashboardLatestSighting?.created_at ?? null}
+          contestedVenuesCount={gapVenues.length}
+          ownBrandName={ownBrandName}
+          gapsUnreviewedCount={gapsUnreviewed.length}
+          gapsPursuingCount={gapsPursuingCount}
+          gapsNotPursuingCount={gapsNotPursuingCount}
+          stockistVenueCount={ownBrandVenues.length}
+          avgRetailPrice={ownBrandAvgRetailPrice}
+        />
+        <div className="dashboard-page-header-toolbar">
+          <div className="dashboard-view-tabs">
             <button
               type="button"
-              className={`dashboard-seg-btn ${filter === 'all' ? 'active' : ''}`}
-              onClick={() => setFilter('all')}
+              className={`dashboard-view-tab ${page === 'sightings' ? 'active' : ''}`}
+              onClick={() => { setPage('sightings'); closeDrawer(); closeGapPanel(); setCompanyVenuePanelKey(null); }}
             >
-              All
+              Sightings
+              {sightings.length > 0 && <span className="dashboard-tab-count">{sightings.length}</span>}
             </button>
             <button
               type="button"
-              className={`dashboard-seg-btn ${filter === 'own' ? 'active' : ''}`}
-              onClick={() => setFilter('own')}
+              className={`dashboard-view-tab ${page === 'competitors' ? 'active' : ''}`}
+              onClick={() => { setPage('competitors'); closeDrawer(); closeGapPanel(); setCompanyVenuePanelKey(null); }}
+            >
+              Competitors
+              {competitorSightings.length > 0 && <span className="dashboard-tab-count">{competitorSightings.length}</span>}
+            </button>
+            <button
+              type="button"
+              className={`dashboard-view-tab ${page === 'gaps' ? 'active' : ''}`}
+              onClick={() => { setPage('gaps'); closeDrawer(); closeGapPanel(); setCompanyVenuePanelKey(null); }}
+            >
+              Gaps
+              {gaps.length > 0 && <span className="dashboard-tab-count">{gaps.length}</span>}
+            </button>
+            <button
+              type="button"
+              className={`dashboard-view-tab ${page === 'company' ? 'active' : ''}`}
+              onClick={() => { setPage('company'); closeDrawer(); closeGapPanel(); }}
             >
               {ownBrandName}
             </button>
-            <button
-              type="button"
-              className={`dashboard-seg-btn ${filter === 'comp' ? 'active' : ''}`}
-              onClick={() => setFilter('comp')}
-            >
-              Competitors
-            </button>
           </div>
-        )}
+          {page === 'sightings' && (
+            <div className="dashboard-seg-control">
+              <button
+                type="button"
+                className={`dashboard-seg-btn ${filter === 'all' ? 'active' : ''}`}
+                onClick={() => setFilter('all')}
+              >
+                All
+              </button>
+              <button
+                type="button"
+                className={`dashboard-seg-btn ${filter === 'own' ? 'active' : ''}`}
+                onClick={() => setFilter('own')}
+              >
+                {ownBrandName}
+              </button>
+              <button
+                type="button"
+                className={`dashboard-seg-btn ${filter === 'comp' ? 'active' : ''}`}
+                onClick={() => setFilter('comp')}
+              >
+                Competitors
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="dashboard-layout">
@@ -1104,12 +1191,12 @@ export default function Dashboard() {
                 </div>
                 <div
                   className="dashboard-gap-stat stat-navy"
-                  title="Mean of all logged retail prices for your brand (where price was entered)"
+                  title={`Mean retail for ${ownBrandName} only — all logged ${ownBrandName} sightings where a price was entered`}
                 >
                   <div className="dashboard-gap-stat-num dashboard-gap-stat-num-currency">
                     {ownBrandAvgRetailPrice != null ? `£${ownBrandAvgRetailPrice.toFixed(2)}` : '—'}
                   </div>
-                  <div className="dashboard-gap-stat-label">Avg retail price</div>
+                  <div className="dashboard-gap-stat-label">{ownBrandName} avg retail</div>
                 </div>
                 <div className="dashboard-gap-stat stat-skip">
                   <div className="dashboard-gap-stat-num">{user?.scout_count ?? '—'}</div>
@@ -1429,8 +1516,11 @@ export default function Dashboard() {
           <div>
             <div className="dashboard-drawer-brand">{selectedSighting?.brand?.name || '—'}</div>
             {selectedSighting?.brand?.is_own_brand && ownBrandAvgRetailPrice != null && (
-              <div className="dashboard-drawer-brand-avg" title={`Average retail across all ${ownBrandName} sightings with a price`}>
-                Avg retail £{ownBrandAvgRetailPrice.toFixed(2)}
+              <div
+                className="dashboard-drawer-brand-avg"
+                title={`Your brand (${ownBrandName}): mean retail across all ${ownBrandName} sightings where a price was logged`}
+              >
+                {ownBrandName} avg retail £{ownBrandAvgRetailPrice.toFixed(2)}
               </div>
             )}
             {selectedSighting?.brand && !selectedSighting.brand.is_own_brand && drawerCompetitorAvgRetailPrice != null && (
