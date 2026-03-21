@@ -2,7 +2,7 @@
 Backfill Gap.town from lat/lng using Nominatim reverse geocoding.
 
 Uses the same formatted address string as LogGap / frontend formatShortAddress
-(POI, locality, postcode) so dashboard parsing stays consistent.
+(locality + postcode only, no POI name) so dashboard parsing stays consistent.
 
 Coordinates: uses gap.lat/lng when both set, otherwise venue.lat/lng.
 
@@ -56,11 +56,6 @@ def format_short_address(data):
     else:
         locality_postcode = locality or postcode
 
-    name = data.get("name")
-    if isinstance(name, str) and name.strip() and locality_postcode:
-        return f"{name.strip()}, {locality_postcode}"
-    if isinstance(name, str) and name.strip():
-        return name.strip()
     return locality_postcode or (data.get("display_name") or "").strip() or None
 
 

@@ -6,7 +6,7 @@ export function getTownFromAddress(data) {
   return town && typeof town === 'string' ? town.trim() : null;
 }
 
-/** Format Nominatim reverse geocode result: shop name + town + postcode, or just town + postcode. */
+/** Format Nominatim reverse geocode result: locality + postcode only (no POI / building name). */
 export function formatShortAddress(data) {
   const addr = data?.address;
   if (!addr) return data?.display_name || null;
@@ -15,11 +15,6 @@ export function formatShortAddress(data) {
   const postcode = addr.postcode;
   const localityPostcode = locality && postcode ? `${locality}, ${postcode}` : locality || postcode;
 
-  const name = data.name;
-  if (name && typeof name === 'string' && name.trim() && localityPostcode) {
-    return `${name.trim()}, ${localityPostcode}`;
-  }
-  if (name && typeof name === 'string' && name.trim()) return name.trim();
   return localityPostcode || data?.display_name || null;
 }
 
@@ -48,7 +43,7 @@ function looksLikeUsZip(s) {
 
 /**
  * Parse a stored gap/sighting location label from formatShortAddress:
- * "POI, Town, Postcode" | "POI, Town" | "Town, Postcode" | single segment.
+ * "Town, Postcode" | "Town" | "Postcode" | legacy "POI, Town, Postcode".
  * @returns {{ town: string | null, postcode: string | null }}
  */
 export function parseStoredLocationString(raw) {
@@ -60,6 +55,7 @@ export function parseStoredLocationString(raw) {
   const lastIsPost = looksLikeUkPostcode(last) || looksLikeUsZip(last);
 
   if (parts.length >= 3 && lastIsPost) {
+    // Legacy three-part strings (POI, town, postcode) — take town + postcode only
     return {
       town: parts[parts.length - 2] || null,
       postcode: last,
@@ -69,7 +65,6 @@ export function parseStoredLocationString(raw) {
     return { town: parts[0] || null, postcode: last };
   }
   if (parts.length === 2) {
-    // "POI, Town" with no postcode
     return { town: parts[1] || null, postcode: null };
   }
   return { town: parts[0] || null, postcode: null };
