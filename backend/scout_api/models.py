@@ -36,6 +36,15 @@ class User(AbstractUser):
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='member')
 
 
+class VenueQuerySet(models.QuerySet):
+    """Venues always belong to an organisation; use this to scope by company."""
+
+    def for_organisation(self, organisation):
+        if organisation is None:
+            return self.none()
+        return self.filter(organisation=organisation)
+
+
 class Venue(models.Model):
     VENUE_TYPES = [
         ('cafe', 'cafe'), ('pub', 'pub'), ('bar', 'bar'), ('deli', 'deli'),
@@ -47,6 +56,8 @@ class Venue(models.Model):
     lat = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
     lng = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+
+    objects = VenueQuerySet.as_manager()
 
 
 class Brand(models.Model):

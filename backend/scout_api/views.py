@@ -230,16 +230,20 @@ def brand_create(request):
 @api_view(['GET', 'POST'])
 @permission_classes([IsAuthenticated])
 def venue_list(request):
+    """List/create venues for the authenticated user's organisation only."""
     org = request.user.organisation
     if not org:
         return Response({'detail': 'No organisation'}, status=status.HTTP_400_BAD_REQUEST)
 
     if request.method == 'GET':
         search = request.GET.get('search', '').strip()
-        qs = Venue.objects.filter(organisation=org)
+        qs = Venue.objects.for_organisation(org)
         if search:
-            qs = qs.filter(name__icontains=search)
-        qs = qs.order_by('name')[:20]
+            # Typeahead: keep a bounded set of matches
+            qs = qs.filter(name__icontains=search).order_by('name')[:100]
+        else:
+            # Full list for sighting/gap dropdowns (no arbitrary cap)
+            qs = qs.order_by('name')
         return Response(VenueSerializer(qs, many=True).data)
 
     ser = VenueCreateSerializer(data=request.data, context={'organisation': org})

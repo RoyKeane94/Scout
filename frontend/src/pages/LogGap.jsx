@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api/axios';
+import { useAuth } from '../context/AuthContext';
 import ScoutSelect from '../components/ScoutSelect';
 import { fetchShortAddress } from '../utils/geocode';
 
@@ -8,6 +9,7 @@ const VENUE_TYPES = ['cafe', 'pub', 'bar', 'deli', 'gym', 'restaurant', 'shop', 
 const VENUE_TYPE_LABELS = { cafe: 'Cafe', pub: 'Pub', bar: 'Bar', deli: 'Deli', gym: 'Gym', restaurant: 'Restaurant', shop: 'Shop', other: 'Other' };
 
 export default function LogGap() {
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [venues, setVenues] = useState([]);
   const [venueId, setVenueId] = useState('');
@@ -27,7 +29,7 @@ export default function LogGap() {
 
   useEffect(() => {
     api.get('/venues/').then((res) => setVenues(res.data || [])).catch(() => setVenues([]));
-  }, []);
+  }, [user?.organisation?.id]);
 
   useEffect(() => {
     document.title = 'Log a gap — Scout';

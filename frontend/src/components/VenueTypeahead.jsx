@@ -1,9 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
 import api from '../api/axios';
+import { useAuth } from '../context/AuthContext';
 
 const VENUE_TYPES = ['cafe', 'pub', 'bar', 'deli', 'gym', 'restaurant', 'shop', 'other'];
 
 export default function VenueTypeahead({ value, onChange, lat, lng }) {
+  const { user } = useAuth();
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
   const [showAdd, setShowAdd] = useState(false);
@@ -32,7 +34,7 @@ export default function VenueTypeahead({ value, onChange, lat, lng }) {
       });
     }, 200);
     return () => clearTimeout(debounceRef.current);
-  }, [query]);
+  }, [query, user?.organisation?.id]);
 
   useEffect(() => {
     const h = (e) => {

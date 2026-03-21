@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import api from '../api/axios';
+import { useAuth } from '../context/AuthContext';
 import ScoutSelect from '../components/ScoutSelect';
 import { formatShortAddress, getTownFromAddress } from '../utils/geocode';
 
@@ -24,6 +25,7 @@ const VENUE_TYPES = ['cafe', 'pub', 'bar', 'deli', 'gym', 'restaurant', 'shop', 
 const VENUE_TYPE_LABELS = { cafe: 'Cafe', pub: 'Pub', bar: 'Bar', deli: 'Deli', gym: 'Gym', restaurant: 'Restaurant', shop: 'Shop', other: 'Other' };
 
 export default function Log() {
+  const { user } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const editSighting = location.state?.editSighting;
@@ -74,7 +76,7 @@ export default function Log() {
     api.get('/config/brands/').then((res) => setBrands(res.data));
     api.get('/venues/').then((res) => setVenues(res.data || [])).catch(() => setVenues([]));
     api.get('/towns/').then((res) => setTowns(res.data || [])).catch(() => setTowns([]));
-  }, []);
+  }, [user?.organisation?.id]);
 
   useEffect(() => {
     if (!editSighting) return;

@@ -102,7 +102,7 @@ class UserListSerializer(serializers.ModelSerializer):
 class VenueSerializer(serializers.ModelSerializer):
     class Meta:
         model = Venue
-        fields = ['id', 'name', 'venue_type', 'lat', 'lng', 'created_at']
+        fields = ['id', 'organisation_id', 'name', 'venue_type', 'lat', 'lng', 'created_at']
 
 
 class TownSerializer(serializers.ModelSerializer):
@@ -186,9 +186,11 @@ class GapCreateSerializer(serializers.Serializer):
         from decimal import Decimal
         org = self.context['request'].user.organisation
         user = self.context['request'].user
+        if not org:
+            raise serializers.ValidationError('User has no organisation')
         venue_id = validated_data.get('venue_id')
         if venue_id is not None:
-            venue = Venue.objects.get(pk=venue_id, organisation=org)
+            venue = Venue.objects.for_organisation(org).get(pk=venue_id)
         else:
             venue = Venue.objects.create(
                 organisation=org,
@@ -299,7 +301,7 @@ class SightingUpdateSerializer(serializers.Serializer):
         from decimal import Decimal
         org = self.context['request'].user.organisation
         if 'venue_id' in validated_data:
-            sighting.venue = Venue.objects.get(pk=validated_data['venue_id'], organisation=org)
+            sighting.venue = Venue.objects.for_organisation(org).get(pk=validated_data['venue_id'])
         if 'brand_id' in validated_data:
             sighting.brand = Brand.objects.get(pk=validated_data['brand_id'], organisation=org)
         if 'photo_b64' in validated_data:
