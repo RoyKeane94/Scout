@@ -949,6 +949,12 @@ export default function Dashboard() {
     navigate('/log/sighting', { state: { editSighting: selectedSighting } });
   };
 
+  const handleReusePhoto = () => {
+    if (!selectedSighting) return;
+    closeDrawer();
+    navigate('/log/sighting', { state: { reusePhotoFromSighting: selectedSighting } });
+  };
+
   const handleDeleteSighting = () => {
     if (!selectedId) return;
     setDeleteConfirmId(selectedId);
@@ -2110,6 +2116,9 @@ export default function Dashboard() {
               <div className="dashboard-drawer-actions">
                 <button type="button" className="dashboard-drawer-btn dashboard-drawer-btn-edit" onClick={handleEditSighting}>
                   Edit
+                </button>
+                <button type="button" className="dashboard-drawer-btn dashboard-drawer-btn-reuse" onClick={handleReusePhoto}>
+                  Reuse Photo
                 </button>
                 {deleteConfirmId === selectedSighting.id ? (
                   <div className="dashboard-drawer-delete-confirm">

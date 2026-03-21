@@ -548,6 +548,17 @@
   color: #dc2626;
 }
 
+.dashboard-drawer-btn-reuse {
+  background: transparent;
+  color: var(--navy);
+  border-color: var(--border);
+}
+
+.dashboard-drawer-btn-reuse:hover {
+  border-color: var(--pursue);
+  color: var(--pursue);
+}
+
 .dashboard-drawer-delete-confirm {
   display: flex;
   align-items: center;

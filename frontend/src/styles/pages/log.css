@@ -46,6 +46,41 @@
   margin-top: 5px;
 }
 
+.log-reuse-hint {
+  margin: 8px 0 0;
+  font-size: 14px;
+  color: var(--grey-1);
+  font-weight: 400;
+  line-height: 1.4;
+}
+
+.log-reuse-photo-notice {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  background: var(--revisit-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.log-reuse-photo-notice-title {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--revisit);
+}
+
+.log-reuse-photo-notice-copy {
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--navy);
+  font-weight: 400;
+}
+
 .log-form-fields {
   display: flex;
   flex-direction: column;

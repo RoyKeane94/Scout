@@ -29,6 +29,8 @@ export default function Log() {
   const location = useLocation();
   const navigate = useNavigate();
   const editSighting = location.state?.editSighting;
+  /** New sighting with same venue, coords & photo as source; brand & product fields blank for user. */
+  const reusePhotoFromSighting = location.state?.reusePhotoFromSighting;
   const [step, setStep] = useState('form');
   const [fields, setFields] = useState([]);
   const [brands, setBrands] = useState([]);
@@ -79,11 +81,35 @@ export default function Log() {
   }, [user?.organisation?.id]);
 
   useEffect(() => {
-    if (!editSighting) return;
-    setVenueId(editSighting.venue?.id ? String(editSighting.venue.id) : '');
-    setBrandId(editSighting.brand?.id ? String(editSighting.brand.id) : '');
-    if (editSighting.town) {
-      const t = editSighting.town;
+    const s = editSighting || reusePhotoFromSighting;
+    if (!s) {
+      setVenueId('');
+      setBrandId('');
+      setPhotoB64(null);
+      setData({});
+      setTownId('');
+      setGeoTown(null);
+      setCoords({ lat: null, lng: null });
+      setVenueAutoFromGeoDone(false);
+      return;
+    }
+
+    setVenueId(s.venue?.id ? String(s.venue.id) : '');
+
+    if (editSighting) {
+      setBrandId(editSighting.brand?.id ? String(editSighting.brand.id) : '');
+      setData({
+        ...(editSighting.data || {}),
+        promo_details: editSighting.promo_details ?? editSighting.data?.promo_details ?? '',
+      });
+    } else if (reusePhotoFromSighting) {
+      setBrandId('');
+      setData({});
+      setVenueAutoFromGeoDone(true);
+    }
+
+    if (s.town) {
+      const t = s.town;
       if (t && typeof t === 'object' && t.id != null) {
         setTownId(String(t.id));
         setGeoTown(t.name ?? '');
@@ -91,27 +117,41 @@ export default function Log() {
         setGeoTown(t);
       }
     }
-    setData({
-      ...(editSighting.data || {}),
-      promo_details: editSighting.promo_details ?? editSighting.data?.promo_details ?? '',
-    });
+
     setCoords({
-      lat: editSighting.lat != null ? Number(editSighting.lat) : null,
-      lng: editSighting.lng != null ? Number(editSighting.lng) : null,
+      lat: s.lat != null ? Number(s.lat) : null,
+      lng: s.lng != null ? Number(s.lng) : null,
     });
-    if (editSighting.id && editSighting.photo_url && editSighting.photo_url.includes('/api/sightings/') && editSighting.photo_url.includes('/photo/')) {
-      api.get(`sightings/${editSighting.id}/photo/`, { responseType: 'blob' })
-        .then((res) => {
-          const blob = res.data;
-          if (blob && blob.size > 0 && !(blob.type && blob.type.startsWith('application/json'))) {
-            const reader = new FileReader();
-            reader.onload = () => setPhotoB64(reader.result);
-            reader.readAsDataURL(blob);
-          }
+
+    const applyPhotoBlob = (blob) => {
+      if (blob && blob.size > 0 && !(blob.type && blob.type.startsWith('application/json'))) {
+        const reader = new FileReader();
+        reader.onload = () => setPhotoB64(reader.result);
+        reader.readAsDataURL(blob);
+      }
+    };
+
+    const pu = s.photo_url;
+    const fromScoutApiPhoto =
+      pu &&
+      (String(pu).includes('/api/sightings/') || String(pu).includes('/sightings/')) &&
+      String(pu).includes('/photo/');
+
+    if (fromScoutApiPhoto && s.id) {
+      api
+        .get(`sightings/${s.id}/photo/`, { responseType: 'blob' })
+        .then((res) => applyPhotoBlob(res.data))
+        .catch(() => {});
+    } else if (reusePhotoFromSighting && !editSighting && pu && /^https?:\/\//i.test(String(pu))) {
+      fetch(String(pu), { mode: 'cors', credentials: 'omit' })
+        .then((r) => {
+          if (!r.ok) throw new Error('photo fetch failed');
+          return r.blob();
         })
+        .then((b) => applyPhotoBlob(b))
         .catch(() => {});
     }
-  }, [editSighting?.id]);
+  }, [editSighting?.id, reusePhotoFromSighting?.id]);
 
   useEffect(() => {
     if (geoLat != null && geoLng != null) setCoords({ lat: geoLat, lng: geoLng });
@@ -179,15 +219,15 @@ export default function Log() {
   };
 
   useEffect(() => {
-    if (!editSighting) {
+    if (!editSighting?.id && !reusePhotoFromSighting?.id) {
       getGeo();
-    } else {
-      // For edits, initialise geo state from existing sighting and don't refresh coordinates.
-      setGeoLoading(false);
-      setGeoLat(editSighting.lat != null ? Number(editSighting.lat) : null);
-      setGeoLng(editSighting.lng != null ? Number(editSighting.lng) : null);
+      return;
     }
-  }, [editSighting]);
+    const s = editSighting || reusePhotoFromSighting;
+    setGeoLoading(false);
+    setGeoLat(s.lat != null ? Number(s.lat) : null);
+    setGeoLng(s.lng != null ? Number(s.lng) : null);
+  }, [editSighting?.id, reusePhotoFromSighting?.id]);
 
   const handlePhoto = (e) => {
     const file = e.target.files?.[0];
@@ -399,7 +439,14 @@ export default function Log() {
     <div className="page log-page">
       <div className="log-inner">
         <div className="page-header log-page-header">
-          <h1 className="page-title">{editSighting ? 'Edit sighting' : 'Log a sighting'}</h1>
+          <h1 className="page-title">
+            {editSighting ? 'Edit sighting' : reusePhotoFromSighting ? 'Reuse a Sighting' : 'Log a sighting'}
+          </h1>
+          {reusePhotoFromSighting && !editSighting && (
+            <p className="log-reuse-hint">
+              Same venue, location and photo. Just a different brand.
+            </p>
+          )}
         </div>
 
         <form onSubmit={handleSubmit} id="log-form-body">
@@ -744,6 +791,14 @@ export default function Log() {
 
           <div className="log-field-group log-field-group-photo">
             <div className="card-label">Photo <span className="optional-hint">(optional)</span></div>
+            {reusePhotoFromSighting && !editSighting && (
+              <div className="log-reuse-photo-notice" role="status">
+                <span className="log-reuse-photo-notice-title">Photo already in use</span>
+                <span className="log-reuse-photo-notice-copy">
+                  This image is from another sighting. You’re logging it again for a different brand.
+                </span>
+              </div>
+            )}
             {photoB64 ? (
               <div className="log-photo-preview">
                 <img src={photoB64} alt="" />
