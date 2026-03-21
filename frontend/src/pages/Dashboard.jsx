@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import api from '../api/axios';
 import { useAuth } from '../context/AuthContext';
 import { formatGapListLocationSuffix, formatGapPanelLocationLine } from '../utils/geocode';
@@ -61,6 +61,11 @@ function averageRetailPriceFromSightings(sightings) {
   return nums.reduce((a, b) => a + b, 0) / nums.length;
 }
 
+/** Own-brand sightings that contribute to average retail (parseable price). */
+function countSightingsWithRetailPrice(sightings) {
+  return sightings.filter((s) => parseRetailPrice(s.data?.price) != null).length;
+}
+
 function formatDateGroup(createdAt) {
   if (!createdAt) return '—';
   const d = new Date(createdAt);
@@ -70,6 +75,16 @@ function formatDateGroup(createdAt) {
   yesterday.setDate(yesterday.getDate() - 1);
   if (d.toDateString() === yesterday.toDateString()) return 'Yesterday';
   return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+}
+
+/** Gaps for a contested venue row, newest first (for filtering need-review vs actioned). */
+function sortContestedVenueGaps(entry, gapsList) {
+  const vid = entry.venue?.id;
+  const venueGaps =
+    vid != null
+      ? gapsList.filter((g) => g.venue?.id === vid)
+      : gapsList.filter((g) => (g.venue?.name || '').trim() === (entry.venue?.name || '').trim());
+  return [...venueGaps].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 }
 
 /**
@@ -85,6 +100,7 @@ function DashboardOverviewStats({
   gapsNotPursuingCount,
   stockistVenueCount,
   avgRetailPrice,
+  avgRetailSightingsCount,
 }) {
   const lastLine = lastSightingCreatedAt
     ? `Last: ${formatDateGroup(lastSightingCreatedAt)}`
@@ -93,6 +109,11 @@ function DashboardOverviewStats({
     gapsPursuingCount === 0 && gapsNotPursuingCount === 0
       ? 'No actioned gaps yet'
       : `${gapsPursuingCount} pursuing · ${gapsNotPursuingCount} not pursuing`;
+
+  const avgRetailSubLine =
+    avgRetailSightingsCount === 0
+      ? 'No sightings with a price'
+      : `Across ${avgRetailSightingsCount} sighting${avgRetailSightingsCount === 1 ? '' : 's'}`;
 
   return (
     <div className="dashboard-overview-stats" aria-label="Dashboard summary">
@@ -110,13 +131,17 @@ function DashboardOverviewStats({
       </div>
       <div
         className="dashboard-gap-stat stat-navy has-sub"
-        title={`Mean retail for ${ownBrandName} only — all logged ${ownBrandName} sightings where a price was entered`}
+        title={
+          avgRetailSightingsCount === 0
+            ? `Log a price on ${ownBrandName} sightings to see an average`
+            : `Mean retail from ${avgRetailSightingsCount} ${ownBrandName} sighting${avgRetailSightingsCount === 1 ? '' : 's'} with a price logged`
+        }
       >
         <div className="dashboard-gap-stat-num dashboard-gap-stat-num-currency">
           {avgRetailPrice != null ? `£${avgRetailPrice.toFixed(2)}` : '—'}
         </div>
         <div className="dashboard-gap-stat-label">{ownBrandName} avg retail</div>
-        <div className="dashboard-gap-stat-sub">{ownBrandName} only · logged prices</div>
+        <div className="dashboard-gap-stat-sub">{avgRetailSubLine}</div>
       </div>
       <div className="dashboard-gap-stat stat-review has-sub">
         <div className="dashboard-gap-stat-num">{gapsUnreviewedCount}</div>
@@ -147,6 +172,7 @@ export default function Dashboard() {
   const [photoLightboxOpen, setPhotoLightboxOpen] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState(null);
   const [gapFilter, setGapFilter] = useState('all');
+  const [contestedVenueFilter, setContestedVenueFilter] = useState('all');
   const [gapPanelKey, setGapPanelKey] = useState(null);
   /** 'unreviewed' | 'actioned' — keeps panel rows aligned with the table that opened it */
   const [gapPanelContext, setGapPanelContext] = useState(null);
@@ -248,8 +274,18 @@ export default function Dashboard() {
 
   const ownBrandSightings = useMemo(() => sightings.filter((s) => s.brand?.is_own_brand), [sightings]);
 
+  const ownBrandActivePromosCount = useMemo(
+    () => ownBrandSightings.filter((s) => isActivePromo(s.data?.promo)).length,
+    [ownBrandSightings],
+  );
+
   const ownBrandAvgRetailPrice = useMemo(
     () => averageRetailPriceFromSightings(ownBrandSightings),
+    [ownBrandSightings],
+  );
+
+  const ownBrandRetailPriceSightingsCount = useMemo(
+    () => countSightingsWithRetailPrice(ownBrandSightings),
     [ownBrandSightings],
   );
 
@@ -325,6 +361,7 @@ export default function Dashboard() {
           venue: { id: s.venue.id, name: s.venue.name, venue_type: s.venue.venue_type },
           competitors: [],
           lastSighting: null,
+          townName: s.town?.name || null,
         });
       }
       const entry = byVenue.get(key);
@@ -334,6 +371,7 @@ export default function Dashboard() {
       }
       if (!entry.lastSighting || new Date(s.created_at) > new Date(entry.lastSighting.created_at)) {
         entry.lastSighting = { when: s.created_at, who: s.submitted_by?.name || s.submitted_by?.email };
+        if (s.town?.name) entry.townName = s.town.name;
       }
     });
     return Array.from(byVenue.values()).sort((a, b) =>
@@ -341,9 +379,42 @@ export default function Dashboard() {
     );
   }, [competitorSightings, venuesWithOwnBrand]);
 
+  const gapVenuesNeedReview = useMemo(
+    () => gapVenues.filter((entry) => !sortContestedVenueGaps(entry, gaps)[0]?.status),
+    [gapVenues, gaps],
+  );
+  const gapVenuesActionedList = useMemo(
+    () => gapVenues.filter((entry) => Boolean(sortContestedVenueGaps(entry, gaps)[0]?.status)),
+    [gapVenues, gaps],
+  );
+  const contestedActionedTabCounts = useMemo(() => {
+    const primary = (e) => sortContestedVenueGaps(e, gaps)[0];
+    return {
+      all: gapVenuesActionedList.length,
+      pursue: gapVenuesActionedList.filter((e) => primary(e)?.status === 'pursue').length,
+      revisit: gapVenuesActionedList.filter((e) => primary(e)?.status === 'revisit').length,
+      skip: gapVenuesActionedList.filter((e) => primary(e)?.status === 'skip').length,
+      declined: gapVenuesActionedList.filter(
+        (e) => primary(e)?.status === 'pursue' && primary(e)?.stage === 'declined',
+      ).length,
+    };
+  }, [gapVenuesActionedList, gaps]);
+  const gapVenuesActionedFiltered = useMemo(() => {
+    if (contestedVenueFilter === 'all') return gapVenuesActionedList;
+    if (contestedVenueFilter === 'declined') {
+      return gapVenuesActionedList.filter((e) => {
+        const p = sortContestedVenueGaps(e, gaps)[0];
+        return p?.status === 'pursue' && p?.stage === 'declined';
+      });
+    }
+    return gapVenuesActionedList.filter(
+      (e) => sortContestedVenueGaps(e, gaps)[0]?.status === contestedVenueFilter,
+    );
+  }, [gapVenuesActionedList, gaps, contestedVenueFilter]);
+
   const headToHeadCount = useMemo(() => {
     return Array.from(venuesWithOwnBrand).filter((venueId) =>
-      competitorSightings.some((s) => s.venue?.id === venueId)
+      competitorSightings.some((s) => s.venue?.id === venueId),
     ).length;
   }, [venuesWithOwnBrand, competitorSightings]);
 
@@ -529,6 +600,263 @@ export default function Dashboard() {
     pursueGaps.forEach((g) => patchGap(g.id, { stage: newStage }));
   };
 
+  /** Gaps logged for a contested venue (competitors present, own brand not). */
+  const getContestedEntryGapGroup = (entry) => {
+    const sorted = sortContestedVenueGaps(entry, gaps);
+    if (!sorted.length) return null;
+    const primary = sorted[0];
+    return { key: getGapGroupKey(primary), gaps: sorted, primary };
+  };
+
+  const createGapForContestedEntry = async (entry) => {
+    const vid = entry.venue?.id;
+    const body =
+      vid != null
+        ? { venue_id: vid }
+        : entry.venue?.name && entry.venue?.venue_type
+          ? { venue_name: entry.venue.name.trim(), venue_type: entry.venue.venue_type }
+          : null;
+    if (!body) throw new Error('no venue');
+    const { data } = await api.post('/gaps/', body);
+    setGaps((prev) => [data, ...prev]);
+    return data;
+  };
+
+  const handleContestedVenueDecision = async (entry, decision, e) => {
+    if (e) e.stopPropagation();
+    let group = getContestedEntryGapGroup(entry);
+    if (!group) {
+      try {
+        const newGap = await createGapForContestedEntry(entry);
+        group = {
+          key: getGapGroupKey(newGap),
+          gaps: [newGap],
+          primary: newGap,
+        };
+      } catch {
+        return;
+      }
+    }
+    handleGapDecisionGroup(group, decision, null);
+  };
+
+  const handleContestedVenueStage = (entry, stage, e) => {
+    if (e) e.stopPropagation();
+    const group = getContestedEntryGapGroup(entry);
+    if (!group) return;
+    handleGapStageGroup(group, stage);
+  };
+
+  const renderContestedVenueTableRows = (entries) =>
+    entries.map((entry, i) => {
+      const group = getContestedEntryGapGroup(entry);
+      const g = group?.primary;
+      const venueType = entry.venue?.venue_type
+        ? VENUE_TYPE_LABELS[entry.venue.venue_type] || entry.venue.venue_type
+        : '';
+      const vid = entry.venue?.id;
+      const venueCount =
+        vid != null ? gapVenueCounts[vid] || group?.gaps?.length || 0 : group?.gaps?.length || 0;
+      const listLocSuffix = formatGapListLocationSuffix(g?.town?.name || entry.townName);
+      const hasStatus = Boolean(g?.status);
+      const isDeclined = g?.status === 'pursue' && g?.stage === 'declined';
+      const showStepper = g?.status === 'pursue' && !isDeclined;
+      const progressStages = ['contacted', 'visit_booked', 'now_stocking'];
+      const activeIdx = g?.stage ? progressStages.indexOf(g.stage) : -1;
+      const canLogGap = vid != null || (entry.venue?.name && entry.venue?.venue_type);
+
+      let badgeEl = null;
+      if (hasStatus && g) {
+        if (isDeclined) {
+          badgeEl = (
+            <span
+              className="gap-badge-text gap-badge-declined"
+              onClick={() => handleGapDecisionGroup(group, 'pursue')}
+              title="Click to remove"
+            >
+              Declined
+            </span>
+          );
+        } else if (g.status === 'pursue') {
+          badgeEl = (
+            <span
+              className="gap-badge-text gap-badge-pursue"
+              onClick={() => handleGapDecisionGroup(group, 'pursue')}
+              title="Click to remove"
+            >
+              Pursue
+            </span>
+          );
+        } else if (g.status === 'revisit') {
+          badgeEl = (
+            <span
+              className="gap-badge-text gap-badge-revisit"
+              onClick={() => handleGapDecisionGroup(group, 'revisit')}
+              title="Click to remove"
+            >
+              Revisit
+            </span>
+          );
+        } else {
+          badgeEl = (
+            <span
+              className="gap-badge-text gap-badge-skip"
+              onClick={() => handleGapDecisionGroup(group, 'skip')}
+              title="Click to remove"
+            >
+              Not pursuing
+            </span>
+          );
+        }
+      }
+
+      const rowKey = vid != null ? `cv-${vid}` : `cv-${entry.venue?.name || i}`;
+
+      return (
+        <React.Fragment key={rowKey}>
+          <tr
+            className={`${group && gapPanelKey === group.key ? 'gap-row-selected' : ''}${showStepper ? ' gap-row-has-stepper' : ''}`}
+            onClick={() => {
+              if (!group) return;
+              openGapPanelFromGroup(group, hasStatus ? 'actioned' : 'unreviewed');
+            }}
+            style={{ cursor: group ? 'pointer' : 'default' }}
+          >
+            <td>
+              <div className="dashboard-gap-venue-cell" style={{ fontWeight: 400, opacity: 0.85 }}>
+                {entry.venue?.name || '—'}
+                {listLocSuffix ? (
+                  <span className="dashboard-comp-gap-venue-type-inline"> {listLocSuffix}</span>
+                ) : null}
+                {venueCount > 1 && <span className="dashboard-gap-venue-count">×{venueCount}</span>}
+              </div>
+            </td>
+            <td className="dashboard-cell-type">{venueType || '—'}</td>
+            <td onClick={(e) => e.stopPropagation()}>
+              <div className="dashboard-comp-gap-pills">
+                {entry.competitors.map((c) => (
+                  <span key={c.id} className="dashboard-comp-pill">
+                    {c.name}
+                  </span>
+                ))}
+              </div>
+            </td>
+            <td className="dashboard-cell-time">
+              <div>{formatTime(entry.lastSighting?.when)}</div>
+              <div className="dashboard-comp-gap-who">{entry.lastSighting?.who || '—'}</div>
+            </td>
+            <td onClick={(e) => e.stopPropagation()}>
+              {!canLogGap ? (
+                <span className="dashboard-comp-gap-venue-type-inline" title="Venue needs a type to log a gap">
+                  —
+                </span>
+              ) : hasStatus && badgeEl ? (
+                badgeEl
+              ) : (
+                <div className="dashboard-gap-triage-btns">
+                  <button
+                    type="button"
+                    className="dashboard-gap-triage-btn pursue"
+                    onClick={(e) =>
+                      group ? handleGapDecisionGroup(group, 'pursue', e) : handleContestedVenueDecision(entry, 'pursue', e)
+                    }
+                  >
+                    <svg width="11" height="11" fill="none" viewBox="0 0 14 14">
+                      <path
+                        d="M2 7l4 4 6-7"
+                        stroke="currentColor"
+                        strokeWidth="2.2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                    Pursue
+                  </button>
+                  <button
+                    type="button"
+                    className="dashboard-gap-triage-btn revisit"
+                    onClick={(e) =>
+                      group ? handleGapDecisionGroup(group, 'revisit', e) : handleContestedVenueDecision(entry, 'revisit', e)
+                    }
+                  >
+                    <svg width="11" height="11" fill="none" viewBox="0 0 14 14">
+                      <path
+                        d="M7 3v4l2.5 2.5M12 7A5 5 0 1 1 2 7a5 5 0 0 1 10 0z"
+                        stroke="currentColor"
+                        strokeWidth="1.7"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                    Revisit
+                  </button>
+                  <button
+                    type="button"
+                    className="dashboard-gap-triage-btn skip"
+                    onClick={(e) =>
+                      group ? handleGapDecisionGroup(group, 'skip', e) : handleContestedVenueDecision(entry, 'skip', e)
+                    }
+                  >
+                    <svg width="11" height="11" fill="none" viewBox="0 0 14 14">
+                      <path
+                        d="M2.5 2.5l9 9M11.5 2.5l-9 9"
+                        stroke="currentColor"
+                        strokeWidth="1.7"
+                        strokeLinecap="round"
+                      />
+                    </svg>
+                    Pass
+                  </button>
+                </div>
+              )}
+            </td>
+          </tr>
+          {showStepper && group && (
+            <tr className="gap-stepper-row" onClick={(e) => e.stopPropagation()}>
+              <td colSpan={4} className="gap-stepper-row-spacer" aria-hidden="true" />
+              <td className="gap-stepper-row-decision">
+                <div className="gap-stepper gap-stepper-table">
+                  {progressStages.map((s, idx) => {
+                    const done = activeIdx >= 0 && idx < activeIdx;
+                    const active = idx === activeIdx;
+                    const stageLabel = {
+                      contacted: 'Contacted',
+                      visit_booked: 'Visit booked',
+                      now_stocking: 'Now stocking',
+                    }[s];
+                    return (
+                      <React.Fragment key={s}>
+                        {idx > 0 && <div className={`gap-stepper-line${done || active ? ' done' : ''}`} />}
+                        <button
+                          type="button"
+                          className={`gap-stepper-step${active ? ' active' : ''}${done ? ' done' : ''}`}
+                          onClick={(e) => handleContestedVenueStage(entry, s, e)}
+                        >
+                          <span className="gap-stepper-circ">{done ? '✓' : idx + 1}</span>
+                          <span className="gap-stepper-lbl">{stageLabel}</span>
+                        </button>
+                      </React.Fragment>
+                    );
+                  })}
+                  <div className="gap-stepper-sep" />
+                  <button
+                    type="button"
+                    className={`gap-stepper-declined${g?.stage === 'declined' ? ' active' : ''}`}
+                    onClick={(e) => handleContestedVenueStage(entry, 'declined', e)}
+                  >
+                    <span className="gap-stepper-declined-circ" aria-hidden>
+                      ×
+                    </span>
+                    <span className="gap-stepper-declined-lbl">Declined</span>
+                  </button>
+                </div>
+              </td>
+            </tr>
+          )}
+        </React.Fragment>
+      );
+    });
+
   const handleGapDecisionPanel = (decision) => {
     if (!gapsForPanel.length) return;
     const allSame = gapsForPanel.every((g) => g.status === decision);
@@ -638,6 +966,7 @@ export default function Dashboard() {
           gapsNotPursuingCount={gapsNotPursuingCount}
           stockistVenueCount={ownBrandVenues.length}
           avgRetailPrice={ownBrandAvgRetailPrice}
+          avgRetailSightingsCount={ownBrandRetailPriceSightingsCount}
         />
         <div className="dashboard-page-header-toolbar">
           <div className="dashboard-view-tabs">
@@ -673,31 +1002,6 @@ export default function Dashboard() {
               {ownBrandName}
             </button>
           </div>
-          {page === 'sightings' && (
-            <div className="dashboard-seg-control">
-              <button
-                type="button"
-                className={`dashboard-seg-btn ${filter === 'all' ? 'active' : ''}`}
-                onClick={() => setFilter('all')}
-              >
-                All
-              </button>
-              <button
-                type="button"
-                className={`dashboard-seg-btn ${filter === 'own' ? 'active' : ''}`}
-                onClick={() => setFilter('own')}
-              >
-                {ownBrandName}
-              </button>
-              <button
-                type="button"
-                className={`dashboard-seg-btn ${filter === 'comp' ? 'active' : ''}`}
-                onClick={() => setFilter('comp')}
-              >
-                Competitors
-              </button>
-            </div>
-          )}
         </div>
       </div>
 
@@ -705,18 +1009,44 @@ export default function Dashboard() {
         <div className="dashboard-main">
           {page === 'sightings' && (
             <div className="dashboard-sightings-view">
-              <div className="dashboard-sightings-summary">
-                <div className="dashboard-sightings-summary-stats">
+              <div className="dashboard-sightings-filter-head">
+                <div className="dashboard-gap-section-eyebrow">Sightings</div>
+                <div className="dashboard-gap-filter-tabs" role="tablist" aria-label="Filter sightings by brand">
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={filter === 'all'}
+                    className={`dashboard-gap-filter-tab${filter === 'all' ? ' active' : ''}`}
+                    onClick={() => setFilter('all')}
+                  >
+                    All {sightings.length}
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={filter === 'own'}
+                    className={`dashboard-gap-filter-tab${filter === 'own' ? ' active' : ''}`}
+                    onClick={() => setFilter('own')}
+                  >
+                    {ownBrandName} {ownBrandSightings.length}
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={filter === 'comp'}
+                    className={`dashboard-gap-filter-tab${filter === 'comp' ? ' active' : ''}`}
+                    onClick={() => setFilter('comp')}
+                  >
+                    Competitors {competitorSightings.length}
+                  </button>
+                </div>
+                <div className="dashboard-sightings-meta-row">
                   <span className="dashboard-sightings-count">
                     {filteredSightings.length} sighting{filteredSightings.length !== 1 ? 's' : ''}
                   </span>
                   <span className="dashboard-sightings-last">
                     {lastSighting ? `Last: ${formatDateGroup(lastSighting.created_at)}` : 'No sightings yet'}
                   </span>
-                </div>
-                <div className="dashboard-sightings-log-actions">
-                  <Link to="/log/sighting" className="dashboard-sightings-log-btn">Log a sighting</Link>
-                  <Link to="/log/gap" className="dashboard-sightings-log-btn dashboard-sightings-log-btn-gap">Log a gap</Link>
                 </div>
               </div>
               <div className="dashboard-table-wrap">
@@ -851,34 +1181,80 @@ export default function Dashboard() {
                   <div className="dashboard-comp-section-label">
                     Contested venues <span className="dashboard-comp-label-count">{gapVenues.length}</span>
                   </div>
-                  <div className="dashboard-comp-gap-table">
-                    <div className="dashboard-comp-gap-header">
-                      <div className="dashboard-comp-gap-title">Venues your competitors are in but you're not</div>
+
+                  <div className="dashboard-gap-section-head">
+                    <div className="dashboard-gap-section-title">
+                      {gapVenuesNeedReview.length === 1 ? 'Needs' : 'Need'} review{' '}
+                      <span className="dashboard-gap-badge review">{gapVenuesNeedReview.length}</span>
                     </div>
-                    {gapVenues.map((g, i) => (
-                      <div key={i} className="dashboard-comp-gap-row">
-                        <div className="dashboard-comp-gap-left">
-                          <div className="dashboard-comp-gap-venue-name">
-                            {g.venue.name}
-                            {g.venue.venue_type && (
-                              <span className="dashboard-comp-gap-venue-type-inline">
-                                {' '}
-                                ({VENUE_TYPE_LABELS[g.venue.venue_type] || g.venue.venue_type})
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                        <div className="dashboard-comp-gap-pills">
-                          {g.competitors.map((c) => (
-                            <span key={c.id} className="dashboard-comp-pill">{c.name}</span>
-                          ))}
-                        </div>
-                        <div className="dashboard-comp-gap-last">
-                          <div className="dashboard-cell-time">{formatTime(g.lastSighting?.when)}</div>
-                          <div className="dashboard-comp-gap-who">{g.lastSighting?.who || '—'}</div>
-                        </div>
+                  </div>
+                  <div className="dashboard-comp-table-wrap">
+                    {gapVenuesNeedReview.length === 0 ? (
+                      <div className="dashboard-gap-empty ok">All contested venues reviewed</div>
+                    ) : (
+                      <table className="dashboard-gap-triage-table dashboard-contested-venues-table">
+                        <thead>
+                          <tr>
+                            <th>Venue</th>
+                            <th>Type</th>
+                            <th>Competitors</th>
+                            <th>Last activity</th>
+                            <th>Decision</th>
+                          </tr>
+                        </thead>
+                        <tbody>{renderContestedVenueTableRows(gapVenuesNeedReview)}</tbody>
+                      </table>
+                    )}
+                  </div>
+
+                  <div className="dashboard-gap-actioned-head">
+                    <div className="dashboard-gap-section-eyebrow">Actioned</div>
+                    <div
+                      className="dashboard-gap-filter-tabs"
+                      role="tablist"
+                      aria-label="Filter actioned contested venues"
+                    >
+                      {[
+                        { key: 'all', label: 'All' },
+                        { key: 'pursue', label: 'Pursue' },
+                        { key: 'revisit', label: 'Revisit' },
+                        { key: 'skip', label: 'Not pursuing' },
+                        { key: 'declined', label: 'Declined' },
+                      ].map((f) => (
+                        <button
+                          key={f.key}
+                          type="button"
+                          role="tab"
+                          aria-selected={contestedVenueFilter === f.key}
+                          className={`dashboard-gap-filter-tab${contestedVenueFilter === f.key ? ' active' : ''}`}
+                          onClick={() => setContestedVenueFilter(f.key)}
+                        >
+                          {f.label} {contestedActionedTabCounts[f.key]}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="dashboard-comp-table-wrap">
+                    {gapVenuesActionedFiltered.length === 0 ? (
+                      <div className="dashboard-gap-empty">
+                        {gapVenuesActionedList.length === 0
+                          ? 'No actioned contested venues yet'
+                          : 'No venues match this filter'}
                       </div>
-                    ))}
+                    ) : (
+                      <table className="dashboard-gap-triage-table dashboard-contested-venues-table">
+                        <thead>
+                          <tr>
+                            <th>Venue</th>
+                            <th>Type</th>
+                            <th>Competitors</th>
+                            <th>Last activity</th>
+                            <th>Decision</th>
+                          </tr>
+                        </thead>
+                        <tbody>{renderContestedVenueTableRows(gapVenuesActionedFiltered)}</tbody>
+                      </table>
+                    )}
                   </div>
                 </>
               )}
@@ -1219,33 +1595,34 @@ export default function Dashboard() {
 
           {page === 'company' && (
             <div className="dashboard-company-wrap">
-              <div className="dashboard-company-gap-stats">
-                <div className="dashboard-gap-stat stat-pursue">
-                  <div className="dashboard-gap-stat-num">{ownBrandSightings.length}</div>
-                  <div className="dashboard-gap-stat-label">Total sightings</div>
+              <div
+                className="dashboard-gap-summary-bar dashboard-company-summary-bar"
+                role="group"
+                aria-label={`${ownBrandName} overview`}
+              >
+                <div className="dashboard-gap-summary-segment">
+                  <p className="dashboard-gap-summary-line">
+                    <span className="dashboard-gap-summary-num c-red">{ownBrandSightings.length}</span>
+                    <span className="dashboard-gap-summary-copy">total sightings</span>
+                  </p>
                 </div>
-                <div className="dashboard-gap-stat stat-revisit">
-                  <div className="dashboard-gap-stat-num">{ownBrandVenues.length}</div>
-                  <div className="dashboard-gap-stat-label">Venues stocking {ownBrandName}</div>
+                <div className="dashboard-gap-summary-segment">
+                  <p className="dashboard-gap-summary-line">
+                    <span className="dashboard-gap-summary-num c-pursue">{ownBrandVenues.length}</span>
+                    <span className="dashboard-gap-summary-copy">total venues</span>
+                  </p>
                 </div>
-                <div
-                  className="dashboard-gap-stat stat-navy"
-                  title={`Mean retail for ${ownBrandName} only — all logged ${ownBrandName} sightings where a price was entered`}
-                >
-                  <div className="dashboard-gap-stat-num dashboard-gap-stat-num-currency">
-                    {ownBrandAvgRetailPrice != null ? `£${ownBrandAvgRetailPrice.toFixed(2)}` : '—'}
-                  </div>
-                  <div className="dashboard-gap-stat-label">{ownBrandName} avg retail</div>
+                <div className="dashboard-gap-summary-segment">
+                  <p className="dashboard-gap-summary-line">
+                    <span className="dashboard-gap-summary-num c-revisit">{user?.scout_count ?? '—'}</span>
+                    <span className="dashboard-gap-summary-copy">number of scouts</span>
+                  </p>
                 </div>
-                <div className="dashboard-gap-stat stat-skip">
-                  <div className="dashboard-gap-stat-num">{user?.scout_count ?? '—'}</div>
-                  <div className="dashboard-gap-stat-label">Number of scouts</div>
-                </div>
-                <div className="dashboard-gap-stat stat-review">
-                  <div className="dashboard-gap-stat-num">
-                    {ownBrandSightings.filter((s) => isActivePromo(s.data?.promo)).length}
-                  </div>
-                  <div className="dashboard-gap-stat-label">Active promos logged</div>
+                <div className="dashboard-gap-summary-segment">
+                  <p className="dashboard-gap-summary-line">
+                    <span className="dashboard-gap-summary-num c-skip">{ownBrandActivePromosCount}</span>
+                    <span className="dashboard-gap-summary-copy">active promos logged</span>
+                  </p>
                 </div>
               </div>
 
@@ -1561,9 +1938,15 @@ export default function Dashboard() {
             {selectedSighting?.brand?.is_own_brand && ownBrandAvgRetailPrice != null && (
               <div
                 className="dashboard-drawer-brand-avg"
-                title={`Your brand (${ownBrandName}): mean retail across all ${ownBrandName} sightings where a price was logged`}
+                title={`Mean retail from ${ownBrandRetailPriceSightingsCount} ${ownBrandName} sighting${ownBrandRetailPriceSightingsCount === 1 ? '' : 's'} with a price logged`}
               >
                 {ownBrandName} avg retail £{ownBrandAvgRetailPrice.toFixed(2)}
+                {ownBrandRetailPriceSightingsCount > 0 && (
+                  <span className="dashboard-drawer-brand-avg-meta">
+                    {' '}
+                    · {ownBrandRetailPriceSightingsCount} sighting{ownBrandRetailPriceSightingsCount === 1 ? '' : 's'}
+                  </span>
+                )}
               </div>
             )}
             {selectedSighting?.brand && !selectedSighting.brand.is_own_brand && drawerCompetitorAvgRetailPrice != null && (

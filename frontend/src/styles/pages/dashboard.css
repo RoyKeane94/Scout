@@ -189,39 +189,6 @@
   padding: 0 4px;
 }
 
-.dashboard-seg-control {
-  display: flex;
-  background: var(--grey-3);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 3px;
-  gap: 0;
-}
-
-.dashboard-seg-btn {
-  padding: 6px 16px;
-  border-radius: 6px;
-  border: none;
-  background: none;
-  font-family: 'DM Sans', sans-serif;
-  font-size: var(--text-sm);
-  font-weight: 500;
-  color: var(--grey-1);
-  cursor: pointer;
-  transition: all 0.15s;
-}
-
-.dashboard-seg-btn:hover {
-  color: var(--navy);
-}
-
-.dashboard-seg-btn.active {
-  background: var(--white);
-  color: var(--navy);
-  font-weight: 500;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
-}
-
 .dashboard-sightings-view {
   flex: 1;
   display: flex;
@@ -230,22 +197,19 @@
   overflow: hidden;
 }
 
-.dashboard-sightings-summary {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  flex-wrap: wrap;
-  padding: 14px 0 16px;
-  border-bottom: 1px solid var(--border);
-  margin-bottom: 12px;
+/* Sightings tab — same minimal tabs as Gaps “Actioned” */
+.dashboard-sightings-filter-head {
   flex-shrink: 0;
+  margin-bottom: 12px;
+  padding-top: 2px;
 }
 
-.dashboard-sightings-summary-stats {
+.dashboard-sightings-meta-row {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px 20px;
+  margin-top: 12px;
 }
 
 .dashboard-sightings-count {
@@ -259,40 +223,6 @@
   font-size: var(--text-xs);
   color: var(--grey-1);
   font-weight: 300;
-}
-
-.dashboard-sightings-log-actions {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.dashboard-sightings-log-btn {
-  padding: 8px 16px;
-  border-radius: 8px;
-  background: var(--navy);
-  color: var(--white);
-  font-family: 'DM Sans', sans-serif;
-  font-size: var(--text-sm);
-  font-weight: 500;
-  text-decoration: none;
-  white-space: nowrap;
-  transition: opacity 0.15s;
-}
-
-.dashboard-sightings-log-btn:hover {
-  opacity: 0.9;
-}
-
-.dashboard-sightings-log-btn-gap {
-  background: transparent;
-  color: var(--navy);
-  border: 1px solid var(--border);
-}
-
-.dashboard-sightings-log-btn-gap:hover {
-  border-color: var(--navy);
-  background: var(--grey-3);
 }
 
 .dashboard-table-wrap {
@@ -461,6 +391,11 @@
   color: var(--navy);
   font-weight: 500;
   margin-top: 8px;
+}
+
+.dashboard-drawer-brand-avg-meta {
+  font-weight: 400;
+  color: var(--grey-1);
 }
 
 .dashboard-drawer-venue {
@@ -1372,14 +1307,10 @@
   min-width: 0;
 }
 
-/* Company dashboard — five gap-style stat cards */
+/* Company tab — same inline strip as Gaps; extra bottom spacing before tables */
 
-.dashboard-company-gap-stats {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 10px;
+.dashboard-company-wrap .dashboard-gap-summary-bar.dashboard-company-summary-bar {
   margin-bottom: 24px;
-  align-items: stretch;
 }
 
 .dashboard-company-wrap .dashboard-comp-gap-table {
@@ -2462,8 +2393,9 @@
   padding: 8px 0 12px;
   margin: 0;
   font-family: 'DM Sans', sans-serif;
-  font-size: 14px;
+  font-size: var(--text-sm);
   font-weight: 500;
+  line-height: 1.3;
   color: var(--grey-1);
   cursor: pointer;
   border-bottom: 3px solid transparent;
@@ -2481,7 +2413,14 @@
   border-bottom-color: var(--navy);
 }
 
-.dashboard-gap-empty { padding: 36px 20px; text-align: center; color: var(--grey-2); font-size: 13px; }
+.dashboard-gap-empty {
+  padding: 14px 20px;
+  text-align: center;
+  color: var(--grey-2);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
 .dashboard-gap-empty.ok { color: var(--navy); }
 
 /* Gap side panel */
@@ -2712,21 +2651,14 @@
     font-size: var(--text-sm);
   }
 
-  .dashboard-seg-control {
-    width: 100%;
-    justify-content: stretch;
+  .dashboard-sightings-filter-head {
+    padding-top: 4px;
   }
 
-  .dashboard-seg-btn {
-    flex: 1;
-    padding: 6px 12px;
-    font-size: var(--text-sm);
-  }
-
-  .dashboard-sightings-summary {
+  .dashboard-sightings-meta-row {
     flex-direction: column;
     align-items: flex-start;
-    padding: 12px 0 14px;
+    gap: 6px;
   }
 
   .dashboard-sightings-table th,
@@ -2815,7 +2747,6 @@
     max-width: 100%;
   }
 
-  .dashboard-company-gap-stats,
   .dashboard-overview-stats {
     grid-template-columns: 1fr 1fr;
     gap: 8px;
@@ -2826,7 +2757,7 @@
   }
 
   .dashboard-gap-filter-tab {
-    font-size: 13px;
+    font-size: var(--text-sm);
     padding: 6px 0 10px;
   }
 
