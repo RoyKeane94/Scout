@@ -27,7 +27,7 @@
   display: flex;
   flex-direction: column;
   background: var(--bg);
-  margin-top: 20px;
+  margin-top: 12px;
 }
 
 .dashboard-page-header {
@@ -63,13 +63,8 @@
   align-items: stretch;
 }
 
+/* Padding inherited from .dashboard-gap-stat; overflow for subtext */
 .dashboard-overview-stats .dashboard-gap-stat {
-  box-sizing: border-box;
-  display: flex;
-  flex-direction: column;
-  min-height: 88px;
-  /* Tighter top/sides, slightly more bottom padding so subtext descenders aren’t clipped */
-  padding: 8px 14px 12px;
   overflow: visible;
 }
 
@@ -1292,28 +1287,64 @@
 .dashboard-comp-wrap {
   flex: 1;
   overflow-y: auto;
-  padding: 20px 24px 20px 0;
+  padding: 0 24px 20px 0;
 }
 
-.dashboard-comp-alert {
-  background: var(--grey-3);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 14px 18px;
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  margin-bottom: 20px;
-}
-
-.dashboard-comp-alert-text { flex: 1; }
-.dashboard-comp-alert-title { font-size: var(--text-sm); font-weight: 500; color: var(--navy); }
-
-.dashboard-comp-stats {
+/* Competitors tab — single bar, Scout tokens (Bebas + DM Sans); white fill, no border */
+.dashboard-comp-summary-bar {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 10px;
-  margin-bottom: 20px;
+  column-gap: 8px;
+  row-gap: 0;
+  align-items: stretch;
+  background: var(--white);
+  border: none;
+  border-radius: 12px;
+  padding: 10px 12px;
+  margin-top: 0;
+  margin-bottom: 16px;
+}
+
+.dashboard-comp-summary-segment {
+  padding: 6px 8px;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  text-align: center;
+}
+
+.dashboard-comp-summary-line {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: center;
+  gap: 4px 6px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--grey-1);
+  line-height: 1.3;
+  text-align: center;
+}
+
+.dashboard-comp-summary-num {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 24px;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  flex-shrink: 0;
+}
+
+.dashboard-comp-summary-num.c-revisit { color: var(--revisit); }
+.dashboard-comp-summary-num.c-navy { color: var(--navy); }
+.dashboard-comp-summary-num.c-red { color: var(--red); }
+.dashboard-comp-summary-num.c-pursue { color: var(--pursue); }
+
+.dashboard-comp-summary-copy {
+  min-width: 0;
 }
 
 /* Company dashboard — five gap-style stat cards */
@@ -1323,10 +1354,7 @@
   grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 10px;
   margin-bottom: 24px;
-}
-
-.dashboard-company-wrap .dashboard-gap-stat {
-  min-height: 88px;
+  align-items: stretch;
 }
 
 .dashboard-company-wrap .dashboard-comp-gap-table {
@@ -1931,13 +1959,19 @@
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 10px;
   margin-bottom: 24px;
+  align-items: stretch;
 }
 
+/* Shared with overview, Gaps tab, Company tab, Competitors tinted row */
 .dashboard-gap-stat {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
   border: none;
   border-radius: 12px;
-  padding: 16px 18px;
+  padding: 8px 14px 12px;
   min-height: 88px;
+  height: 100%;
 }
 
 .dashboard-gap-stat.stat-review { background: var(--red-bg); }
@@ -2693,9 +2727,18 @@
     min-width: 100px;
   }
 
-  .dashboard-comp-stats {
+  .dashboard-comp-summary-bar {
     grid-template-columns: 1fr 1fr;
-    gap: 8px;
+    column-gap: 8px;
+    row-gap: 8px;
+    padding: 10px 12px;
+    margin-bottom: 14px;
+  }
+
+  .dashboard-comp-summary-segment {
+    padding: 8px 6px;
+    border: none;
+    justify-content: center;
   }
 
   .dashboard-comp-stats-company {

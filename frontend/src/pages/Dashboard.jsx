@@ -790,32 +790,42 @@ export default function Dashboard() {
 
           {page === 'competitors' && (
             <div className="dashboard-comp-wrap">
-              {gapVenues.length > 0 && (
-                <div className="dashboard-comp-alert">
-                  <div className="dashboard-comp-alert-text">
-                    <div className="dashboard-comp-alert-title">
-                      {gapVenues.length} venue{gapVenues.length !== 1 ? 's are' : ' is'} stocking competitors but not {ownBrandName}
-                    </div>
-                  </div>
+              <div
+                className="dashboard-comp-summary-bar"
+                role="group"
+                aria-label="Competitor overview"
+              >
+                <div className="dashboard-comp-summary-segment">
+                  <p className="dashboard-comp-summary-line">
+                    <span className="dashboard-comp-summary-num c-revisit">{gapVenues.length}</span>
+                    <span className="dashboard-comp-summary-copy">
+                      {gapVenues.length === 1 ? 'venue' : 'venues'} stocking competitors
+                    </span>
+                  </p>
                 </div>
-              )}
-
-              <div className="dashboard-comp-stats">
-                <div className="dashboard-stat-card">
-                  <div className="dashboard-stat-num">{gapVenues.length}</div>
-                  <div className="dashboard-stat-label">Venues stocking competitors</div>
+                <div className="dashboard-comp-summary-segment">
+                  <p className="dashboard-comp-summary-line">
+                    <span className="dashboard-comp-summary-num c-navy">{competitorSightings.length}</span>
+                    <span className="dashboard-comp-summary-copy">
+                      competitor {competitorSightings.length === 1 ? 'sighting' : 'sightings'} logged
+                    </span>
+                  </p>
                 </div>
-                <div className="dashboard-stat-card">
-                  <div className="dashboard-stat-num">{competitorSightings.length}</div>
-                  <div className="dashboard-stat-label">Competitor sightings this month</div>
+                <div className="dashboard-comp-summary-segment">
+                  <p className="dashboard-comp-summary-line">
+                    <span className="dashboard-comp-summary-num c-red">{activePromosCount}</span>
+                    <span className="dashboard-comp-summary-copy">
+                      active {activePromosCount === 1 ? 'promo' : 'promos'}
+                    </span>
+                  </p>
                 </div>
-                <div className="dashboard-stat-card">
-                  <div className="dashboard-stat-num">{activePromosCount}</div>
-                  <div className="dashboard-stat-label">Active promos spotted in the wild</div>
-                </div>
-                <div className="dashboard-stat-card">
-                  <div className="dashboard-stat-num">{headToHeadCount}</div>
-                  <div className="dashboard-stat-label">Venues where you're also stocked</div>
+                <div className="dashboard-comp-summary-segment">
+                  <p className="dashboard-comp-summary-line">
+                    <span className="dashboard-comp-summary-num c-pursue">{headToHeadCount}</span>
+                    <span className="dashboard-comp-summary-copy">
+                      {headToHeadCount === 1 ? 'venue' : 'venues'} where you're also stocked
+                    </span>
+                  </p>
                 </div>
               </div>
 
