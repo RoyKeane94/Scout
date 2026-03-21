@@ -43,6 +43,23 @@ function isActivePromo(p) {
   return String(p).trim().toLowerCase() !== 'full price';
 }
 
+/** Parse retail price from sighting data (handles "2.50", "£3", etc.) */
+function parseRetailPrice(val) {
+  if (val == null || val === '') return null;
+  const s = String(val).replace(/[£$€,\s]/g, '').trim();
+  if (!s) return null;
+  const n = parseFloat(s);
+  return Number.isFinite(n) ? n : null;
+}
+
+function averageRetailPriceFromSightings(sightings) {
+  const nums = sightings
+    .map((s) => parseRetailPrice(s.data?.price))
+    .filter((n) => n != null);
+  if (!nums.length) return null;
+  return nums.reduce((a, b) => a + b, 0) / nums.length;
+}
+
 function formatDateGroup(createdAt) {
   if (!createdAt) return '—';
   const d = new Date(createdAt);
@@ -72,6 +89,8 @@ export default function Dashboard() {
   const [gapPanelKey, setGapPanelKey] = useState(null);
   /** 'unreviewed' | 'actioned' — keeps panel rows aligned with the table that opened it */
   const [gapPanelContext, setGapPanelContext] = useState(null);
+  /** Company page: venue row key for locations/notes slide-out panel */
+  const [companyVenuePanelKey, setCompanyVenuePanelKey] = useState(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -90,12 +109,13 @@ export default function Dashboard() {
           setGapPanelKey(null);
           setGapPanelContext(null);
         }
+        else if (companyVenuePanelKey != null) setCompanyVenuePanelKey(null);
         else closeDrawer();
       }
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [photoLightboxOpen, gapPanelKey]);
+  }, [photoLightboxOpen, gapPanelKey, companyVenuePanelKey]);
 
   useEffect(() => {
     document.body.style.overflow = photoLightboxOpen ? 'hidden' : '';
@@ -167,6 +187,11 @@ export default function Dashboard() {
 
   const ownBrandSightings = useMemo(() => sightings.filter((s) => s.brand?.is_own_brand), [sightings]);
 
+  const ownBrandAvgRetailPrice = useMemo(
+    () => averageRetailPriceFromSightings(ownBrandSightings),
+    [ownBrandSightings],
+  );
+
   const ownBrandVenues = useMemo(() => {
     const byVenue = new Map();
     ownBrandSightings.forEach((s) => {
@@ -187,6 +212,22 @@ export default function Dashboard() {
     });
   }, [ownBrandSightings]);
 
+  const companyPanelGroup = useMemo(() => {
+    if (companyVenuePanelKey == null) return null;
+    return (
+      ownBrandVenues.find((g, i) => {
+        const key = g.venue?.id ?? g.venue?.name ?? i;
+        return String(key) === String(companyVenuePanelKey);
+      }) || null
+    );
+  }, [companyVenuePanelKey, ownBrandVenues]);
+
+  useEffect(() => {
+    if (companyVenuePanelKey != null && !companyPanelGroup) {
+      setCompanyVenuePanelKey(null);
+    }
+  }, [companyVenuePanelKey, companyPanelGroup]);
+
   const filteredSightings = useMemo(() => {
     if (filter === 'all') return sightings;
     if (filter === 'own') return sightings.filter((s) => s.brand?.is_own_brand);
@@ -196,6 +237,13 @@ export default function Dashboard() {
   const selectedSighting = useMemo(() => sightings.find((s) => s.id === selectedId), [sightings, selectedId]);
 
   const competitorSightings = useMemo(() => sightings.filter((s) => !s.brand?.is_own_brand), [sightings]);
+
+  /** Avg retail for the competitor brand of the opened sighting (drawer = “specific vendor” context) */
+  const drawerCompetitorAvgRetailPrice = useMemo(() => {
+    if (!selectedSighting?.brand?.id || selectedSighting.brand?.is_own_brand) return null;
+    const sameBrand = competitorSightings.filter((s) => s.brand?.id === selectedSighting.brand.id);
+    return averageRetailPriceFromSightings(sameBrand);
+  }, [selectedSighting, competitorSightings]);
 
   const venuesWithOwnBrand = useMemo(() => {
     const ids = new Set();
@@ -271,12 +319,14 @@ export default function Dashboard() {
     return Array.from(byBrand.values()).map((e) => {
       const venueCount = e.venues.size;
       const activePromo = e.sightings.find((s) => isActivePromo(s.data?.promo))?.data?.promo || null;
+      const avgRetailPrice = averageRetailPriceFromSightings(e.sightings);
       return {
         ...e,
         venues: Array.from(e.venues.values()),
         count: e.sightings.length,
         venueCount,
         activePromo,
+        avgRetailPrice,
       };
     });
   }, [competitorSightings, venuesWithOwnBrand]);
@@ -286,7 +336,6 @@ export default function Dashboard() {
     [gaps]
   );
   const [expandedGapId, setExpandedGapId] = useState(null);
-  const [expandedCompanyVenueKey, setExpandedCompanyVenueKey] = useState(null);
 
   const gapVenueCounts = useMemo(() => {
     const counts = {};
@@ -301,6 +350,8 @@ export default function Dashboard() {
   const gapsActioned = useMemo(() => gapsSorted.filter((g) => g.status), [gapsSorted]);
   const gapsFiltered = useMemo(() => {
     if (gapFilter === 'all') return gapsActioned;
+    if (gapFilter === 'declined')
+      return gapsActioned.filter((g) => g.status === 'pursue' && g.stage === 'declined');
     return gapsActioned.filter((g) => g.status === gapFilter);
   }, [gapsActioned, gapFilter]);
 
@@ -337,7 +388,11 @@ export default function Dashboard() {
     if (gapPanelContext === 'unreviewed') list = list.filter((g) => !g.status);
     if (gapPanelContext === 'actioned') {
       list = list.filter((g) => g.status);
-      if (gapFilter !== 'all') list = list.filter((g) => g.status === gapFilter);
+      if (gapFilter === 'declined') {
+        list = list.filter((g) => g.status === 'pursue' && g.stage === 'declined');
+      } else if (gapFilter !== 'all') {
+        list = list.filter((g) => g.status === gapFilter);
+      }
     }
     return [...list].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
   }, [gapPanelKey, gapPanelContext, gapFilter, gaps]);
@@ -440,6 +495,7 @@ export default function Dashboard() {
   }, [filteredSightings]);
 
   const openDrawer = (id) => {
+    setCompanyVenuePanelKey(null);
     setSelectedId(id);
     setDrawerOpen(true);
   };
@@ -485,7 +541,7 @@ export default function Dashboard() {
           <button
             type="button"
             className={`dashboard-view-tab ${page === 'sightings' ? 'active' : ''}`}
-            onClick={() => { setPage('sightings'); closeDrawer(); closeGapPanel(); }}
+            onClick={() => { setPage('sightings'); closeDrawer(); closeGapPanel(); setCompanyVenuePanelKey(null); }}
           >
             Sightings
             {sightings.length > 0 && <span className="dashboard-tab-count">{sightings.length}</span>}
@@ -493,7 +549,7 @@ export default function Dashboard() {
           <button
             type="button"
             className={`dashboard-view-tab ${page === 'competitors' ? 'active' : ''}`}
-            onClick={() => { setPage('competitors'); closeDrawer(); closeGapPanel(); }}
+            onClick={() => { setPage('competitors'); closeDrawer(); closeGapPanel(); setCompanyVenuePanelKey(null); }}
           >
             Competitors
             {competitorSightings.length > 0 && <span className="dashboard-tab-count">{competitorSightings.length}</span>}
@@ -501,7 +557,7 @@ export default function Dashboard() {
           <button
             type="button"
             className={`dashboard-view-tab ${page === 'gaps' ? 'active' : ''}`}
-            onClick={() => { setPage('gaps'); closeDrawer(); closeGapPanel(); }}
+            onClick={() => { setPage('gaps'); closeDrawer(); closeGapPanel(); setCompanyVenuePanelKey(null); }}
           >
             Gaps
             {gaps.length > 0 && <span className="dashboard-tab-count">{gaps.length}</span>}
@@ -721,6 +777,11 @@ export default function Dashboard() {
                       <div className="dashboard-comp-brand-name">{b.name}</div>
                       <div className="dashboard-comp-brand-meta">
                         <span className="dashboard-comp-sightings-count">{b.count} sightings</span>
+                        {b.avgRetailPrice != null && (
+                          <span className="dashboard-comp-avg-price" title="Average of logged retail prices for this competitor">
+                            Avg retail £{b.avgRetailPrice.toFixed(2)}
+                          </span>
+                        )}
                       </div>
                     </div>
                     {b.venues.map((v, i) => (
@@ -913,6 +974,7 @@ export default function Dashboard() {
                     { key: 'pursue', label: 'Pursue' },
                     { key: 'revisit', label: 'Revisit' },
                     { key: 'skip', label: 'Not pursuing' },
+                    { key: 'declined', label: 'Declined' },
                   ].map((f) => (
                     <button
                       key={f.key}
@@ -927,7 +989,9 @@ export default function Dashboard() {
               </div>
               <div className="dashboard-comp-table-wrap">
                 {gapsFiltered.length === 0 ? (
-                  <div className="dashboard-gap-empty">No actioned gaps yet</div>
+                  <div className="dashboard-gap-empty">
+                    {gapsActioned.length === 0 ? 'No actioned gaps yet' : 'No gaps match this filter'}
+                  </div>
                 ) : (
                   <table className="dashboard-gap-triage-table">
                     <thead>
@@ -1029,24 +1093,33 @@ export default function Dashboard() {
 
           {page === 'company' && (
             <div className="dashboard-company-wrap">
-              <div className="dashboard-comp-stats dashboard-comp-stats-company">
-                <div className="dashboard-stat-card">
-                  <div className="dashboard-stat-num">{ownBrandSightings.length}</div>
-                  <div className="dashboard-stat-label">Total sightings</div>
+              <div className="dashboard-company-gap-stats">
+                <div className="dashboard-gap-stat stat-pursue">
+                  <div className="dashboard-gap-stat-num">{ownBrandSightings.length}</div>
+                  <div className="dashboard-gap-stat-label">Total sightings</div>
                 </div>
-                <div className="dashboard-stat-card">
-                  <div className="dashboard-stat-num">{ownBrandVenues.length}</div>
-                  <div className="dashboard-stat-label">Venues stocking {ownBrandName}</div>
+                <div className="dashboard-gap-stat stat-revisit">
+                  <div className="dashboard-gap-stat-num">{ownBrandVenues.length}</div>
+                  <div className="dashboard-gap-stat-label">Venues stocking {ownBrandName}</div>
                 </div>
-                <div className="dashboard-stat-card">
-                  <div className="dashboard-stat-num">{user?.scout_count ?? '—'}</div>
-                  <div className="dashboard-stat-label">Number of scouts</div>
+                <div
+                  className="dashboard-gap-stat stat-navy"
+                  title="Mean of all logged retail prices for your brand (where price was entered)"
+                >
+                  <div className="dashboard-gap-stat-num dashboard-gap-stat-num-currency">
+                    {ownBrandAvgRetailPrice != null ? `£${ownBrandAvgRetailPrice.toFixed(2)}` : '—'}
+                  </div>
+                  <div className="dashboard-gap-stat-label">Avg retail price</div>
                 </div>
-                <div className="dashboard-stat-card">
-                  <div className="dashboard-stat-num">
+                <div className="dashboard-gap-stat stat-skip">
+                  <div className="dashboard-gap-stat-num">{user?.scout_count ?? '—'}</div>
+                  <div className="dashboard-gap-stat-label">Number of scouts</div>
+                </div>
+                <div className="dashboard-gap-stat stat-review">
+                  <div className="dashboard-gap-stat-num">
                     {ownBrandSightings.filter((s) => isActivePromo(s.data?.promo)).length}
                   </div>
-                  <div className="dashboard-stat-label">Active promos logged</div>
+                  <div className="dashboard-gap-stat-label">Active promos logged</div>
                 </div>
               </div>
 
@@ -1062,7 +1135,6 @@ export default function Dashboard() {
                       <thead>
                         <tr>
                           <th>Venue</th>
-                          <th>Locations</th>
                           <th>Type</th>
                           <th>Placement</th>
                           <th>Activity</th>
@@ -1074,6 +1146,7 @@ export default function Dashboard() {
                       <tbody>
                         {ownBrandVenues.map((g, i) => {
                           const venueKey = g.venue?.id ?? g.venue?.name ?? i;
+                          const keyStr = String(venueKey);
                           const latest = g.sightings.reduce(
                             (m, s) => (new Date(s.created_at) > new Date(m.created_at) ? s : m),
                             g.sightings[0],
@@ -1082,58 +1155,44 @@ export default function Dashboard() {
                           const venueType = g.venue?.venue_type
                             ? VENUE_TYPE_LABELS[g.venue.venue_type] || g.venue.venue_type
                             : '';
-                          const areas = [...new Set(g.sightings.map((s) => s.town?.name).filter(Boolean))];
-                          const isExpanded = expandedCompanyVenueKey === venueKey;
+                          const nLogs = g.sightings.length;
+                          const panelOpen = companyVenuePanelKey === keyStr;
                           return (
-                            <React.Fragment key={venueKey}>
-                              <tr
-                                className="dashboard-comp-venue-summary-row"
-                                onClick={() => setExpandedCompanyVenueKey(isExpanded ? null : venueKey)}
-                              >
-                                <td>
-                                  <div className="dashboard-venue-name">
-                                    {g.venue.name}
-                                    {areas[0] && (
-                                      <span className="dashboard-comp-gap-venue-type-inline">
-                                        {' '}
-                                        ({areas[0]})
-                                      </span>
-                                    )}
-                                  </div>
-                                </td>
-                                <td>{areas.length ? areas.join(', ') : '—'}</td>
-                                <td className="dashboard-cell-type">{venueType || '—'}</td>
-                                <td>{d.placement || '—'}</td>
-                                <td>
-                                  <div className="dashboard-cell-chips">
-                                    {d.obs && d.obs !== '—' && (
-                                      <span className="dashboard-chip green">{d.obs}</span>
-                                    )}
-                                    {isActivePromo(d.promo) ? (
-                                      <span className="dashboard-chip amber">{d.promo}</span>
-                                    ) : d.promo && String(d.promo).trim().toLowerCase() === 'full price' ? (
-                                      <span className="dashboard-chip dashboard-chip-neutral">Full price</span>
-                                    ) : null}
-                                  </div>
-                                </td>
-                                <td className="dashboard-cell-price">
-                                  {d.price != null && d.price !== '' ? d.price : '—'}
-                                </td>
-                                <td>{latest.submitted_by?.name || latest.submitted_by?.email || '—'}</td>
-                                <td className="dashboard-cell-time">{formatTime(latest.created_at)}</td>
-                              </tr>
-                              {isExpanded && (
-                                <tr className="dashboard-gap-notes-row">
-                                  <td colSpan={8}>
-                                    <div className="dashboard-comp-gap-areas">
-                                      <span className="dashboard-comp-gap-areas-label">All locations:</span>
-                                      {' '}
-                                      {areas.length ? areas.join(', ') : '—'}
-                                    </div>
-                                  </td>
-                                </tr>
-                              )}
-                            </React.Fragment>
+                            <tr
+                              key={venueKey}
+                              className={`dashboard-comp-venue-summary-row${panelOpen ? ' dashboard-comp-venue-summary-row-selected' : ''}`}
+                              onClick={() => setCompanyVenuePanelKey(panelOpen ? null : keyStr)}
+                            >
+                              <td>
+                                <div className="dashboard-venue-name dashboard-comp-venue-name-with-count">
+                                  {g.venue.name}
+                                  {nLogs > 1 && (
+                                    <span className="dashboard-gap-venue-count" title={`${nLogs} logs for this venue`}>
+                                      ×{nLogs}
+                                    </span>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="dashboard-cell-type">{venueType || '—'}</td>
+                              <td>{d.placement || '—'}</td>
+                              <td>
+                                <div className="dashboard-cell-chips">
+                                  {d.obs && d.obs !== '—' && (
+                                    <span className="dashboard-chip green">{d.obs}</span>
+                                  )}
+                                  {isActivePromo(d.promo) ? (
+                                    <span className="dashboard-chip amber">{d.promo}</span>
+                                  ) : d.promo && String(d.promo).trim().toLowerCase() === 'full price' ? (
+                                    <span className="dashboard-chip dashboard-chip-neutral">Full price</span>
+                                  ) : null}
+                                </div>
+                              </td>
+                              <td className="dashboard-cell-price">
+                                {d.price != null && d.price !== '' ? d.price : '—'}
+                              </td>
+                              <td>{latest.submitted_by?.name || latest.submitted_by?.email || '—'}</td>
+                              <td className="dashboard-cell-time">{formatTime(latest.created_at)}</td>
+                            </tr>
                           );
                         })}
                       </tbody>
@@ -1167,12 +1226,6 @@ export default function Dashboard() {
                             <td>
                               <div className="dashboard-venue-name">
                                 {s.venue?.name || '—'}
-                                {s.town?.name && (
-                                  <span className="dashboard-comp-gap-venue-type-inline">
-                                    {' '}
-                                    ({s.town.name})
-                                  </span>
-                                )}
                               </div>
                             </td>
                             <td className="dashboard-cell-type">{venueType || '—'}</td>
@@ -1318,11 +1371,73 @@ export default function Dashboard() {
         </div>
       </div>
 
+      {/* Company page: venue locations & notes (right panel) */}
+      {companyVenuePanelKey != null && (
+        <div
+          className="dashboard-drawer-overlay dashboard-comp-venue-overlay show"
+          onClick={() => setCompanyVenuePanelKey(null)}
+          aria-hidden
+        />
+      )}
+      <div className={`dashboard-gap-panel dashboard-comp-venue-notes-panel ${companyVenuePanelKey != null ? 'open' : ''}`}>
+        <div className="dashboard-gap-panel-top">
+          <div>
+            <div className="dashboard-gap-panel-venue">{companyPanelGroup?.venue?.name || '—'}</div>
+            <div className="dashboard-gap-panel-meta">
+              {companyPanelGroup?.venue?.venue_type
+                ? (VENUE_TYPE_LABELS[companyPanelGroup.venue.venue_type] || companyPanelGroup.venue.venue_type)
+                : ''}
+              {companyPanelGroup?.sightings?.length
+                ? ` · ${companyPanelGroup.sightings.length} log${companyPanelGroup.sightings.length !== 1 ? 's' : ''}`
+                : ''}
+            </div>
+          </div>
+          <button type="button" className="dashboard-gap-panel-close" onClick={() => setCompanyVenuePanelKey(null)} aria-label="Close">
+            <svg width="12" height="12" fill="none" viewBox="0 0 14 14"><path d="M1 1l12 12M13 1L1 13" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg>
+          </button>
+        </div>
+        <div className="dashboard-gap-panel-body">
+          <div className="dashboard-gap-panel-section">
+            <div className="dashboard-gap-panel-label">By location</div>
+            <ul className="dashboard-gap-panel-locations">
+              {[...(companyPanelGroup?.sightings || [])]
+                .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+                .map((s) => {
+                  const notesRaw = (s.data?.notes || '').trim();
+                  const promo = (s.promo_details || '').trim();
+                  const text = notesRaw || promo;
+                  return (
+                    <li key={s.id} className="dashboard-gap-panel-location-row">
+                      <div className="dashboard-gap-panel-loc-main">
+                        <span className="dashboard-gap-panel-loc-place">{s.town?.name || '—'}</span>
+                        <span className="dashboard-gap-panel-loc-when">{formatTime(s.created_at)}</span>
+                      </div>
+                      <div className={`dashboard-comp-venue-log-notes${text ? '' : ' is-empty'}`}>
+                        {text || 'No notes for this log.'}
+                      </div>
+                    </li>
+                  );
+                })}
+            </ul>
+          </div>
+        </div>
+      </div>
+
       {/* Drawer */}
       <div className={`dashboard-drawer ${drawerOpen ? 'open' : ''}`}>
         <div className="dashboard-drawer-header">
           <div>
             <div className="dashboard-drawer-brand">{selectedSighting?.brand?.name || '—'}</div>
+            {selectedSighting?.brand?.is_own_brand && ownBrandAvgRetailPrice != null && (
+              <div className="dashboard-drawer-brand-avg" title={`Average retail across all ${ownBrandName} sightings with a price`}>
+                Avg retail £{ownBrandAvgRetailPrice.toFixed(2)}
+              </div>
+            )}
+            {selectedSighting?.brand && !selectedSighting.brand.is_own_brand && drawerCompetitorAvgRetailPrice != null && (
+              <div className="dashboard-drawer-brand-avg" title="Average retail price across all logged sightings for this competitor">
+                Avg retail £{drawerCompetitorAvgRetailPrice.toFixed(2)}
+              </div>
+            )}
             <div className="dashboard-drawer-venue">
               {selectedSighting?.venue?.name || '—'}
               {selectedSighting?.town?.name ? ` (${selectedSighting.town.name})` : ''}

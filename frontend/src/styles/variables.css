@@ -42,6 +42,8 @@
   --skip: #6366f1;
   --skip-bg: #eef2ff;
   --skip-border: rgba(99, 102, 241, 0.25);
+  /* Company / price stat (matches gap card tint pattern) */
+  --navy-stat-bg: #e8edf5;
 
   /* Type scale – use these for consistent sizing */
   --text-xs: 0.6875rem;   /* 11px – labels, chips, small meta */

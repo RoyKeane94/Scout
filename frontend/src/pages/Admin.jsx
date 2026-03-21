@@ -19,7 +19,7 @@ const FIELD_DESCS = {
   obs: 'Type of activity spotted',
   promo: 'Any deal or campaign running?',
   notes: 'Anything else to capture?',
-  unit: 'multipack or single unit',
+  unit: 'Multipack or single unit',
 };
 
 const ALL_FIELDS = ['brand', 'placement', 'price', 'obs', 'promo', 'notes', 'unit'];
