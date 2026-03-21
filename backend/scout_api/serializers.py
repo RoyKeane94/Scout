@@ -250,31 +250,69 @@ class SightingCreateSerializer(serializers.Serializer):
     venue_id = serializers.IntegerField()
     brand_id = serializers.IntegerField()
     photo_b64 = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    reuse_photo_from_sighting_id = serializers.IntegerField(
+        required=False,
+        allow_null=True,
+        help_text='If photo_b64 is empty, copy image from this sighting (same organisation).',
+    )
     lat = serializers.FloatField(required=False, allow_null=True)
     lng = serializers.FloatField(required=False, allow_null=True)
     town_name = serializers.CharField(required=False, allow_blank=True, default='')
     data = serializers.JSONField(required=False, default=dict)
 
+    def validate(self, attrs):
+        reuse_id = attrs.get('reuse_photo_from_sighting_id')
+        if reuse_id is None:
+            return attrs
+        org = self.context['request'].user.organisation
+        if not org or not Sighting.objects.filter(pk=reuse_id, organisation=org).exists():
+            raise serializers.ValidationError(
+                {'reuse_photo_from_sighting_id': 'Source sighting not found in your organisation.'}
+            )
+        return attrs
+
     def create(self, validated_data):
         from decimal import Decimal
+        from django.conf import settings
+
         org = self.context['request'].user.organisation
         user = self.context['request'].user
+        reuse_id = validated_data.pop('reuse_photo_from_sighting_id', None)
+
         venue = Venue.objects.get(pk=validated_data['venue_id'], organisation=org)
         brand = Brand.objects.get(pk=validated_data['brand_id'], organisation=org)
         photo_b64 = validated_data.get('photo_b64')
-        if photo_b64 and ',' in photo_b64 and photo_b64.startswith('data:'):
+        if photo_b64 and ',' in str(photo_b64) and str(photo_b64).startswith('data:'):
             photo_b64 = photo_b64.split(',', 1)[1]
+
+        copy_photo_url = None
+        if reuse_id is not None:
+            src = Sighting.objects.only('id', 'photo_b64', 'photo_url').get(pk=reuse_id, organisation=org)
+            client_has_photo = bool(photo_b64 and str(photo_b64).strip())
+            if not client_has_photo:
+                src_b64 = (src.photo_b64 or '').replace('\n', '').replace('\r', '').strip()
+                if src_b64:
+                    photo_b64 = src_b64
+                elif src.photo_url:
+                    copy_photo_url = src.photo_url
+                # else: source has no image — leave photo empty
+
         data_dict = validated_data.get('data', {}) or {}
         town = None
         name = (validated_data.get('town_name') or '').strip()
         if name:
             town, _ = Town.objects.get_or_create(organisation=org, name=name[:255])
+
+        if copy_photo_url:
+            photo_b64 = None
+
         create_kwargs = {
             'organisation': org,
             'submitted_by': user,
             'venue': venue,
             'brand': brand,
-            'photo_b64': photo_b64,
+            'photo_b64': photo_b64 if photo_b64 else None,
+            'photo_url': copy_photo_url,
             'town': town,
             'data': data_dict,
             'promo_details': data_dict.get('promo_details') or None,
@@ -284,9 +322,9 @@ class SightingCreateSerializer(serializers.Serializer):
         if validated_data.get('lng') is not None:
             create_kwargs['lng'] = Decimal(str(validated_data['lng']))
         sighting = Sighting.objects.create(**create_kwargs)
-        if photo_b64 and photo_b64.strip():
+        if photo_b64 and str(photo_b64).strip() and not copy_photo_url:
             from .s3_photos import upload_photo_b64_to_s3
-            from django.conf import settings
+
             if getattr(settings, 'S3_PHOTOS_ENABLED', False):
                 url = upload_photo_b64_to_s3(photo_b64, org.id, sighting.id)
                 if url:

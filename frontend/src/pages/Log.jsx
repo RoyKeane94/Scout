@@ -131,25 +131,23 @@ export default function Log() {
       }
     };
 
-    const pu = s.photo_url;
-    const fromScoutApiPhoto =
-      pu &&
-      (String(pu).includes('/api/sightings/') || String(pu).includes('/sightings/')) &&
-      String(pu).includes('/photo/');
-
-    if (fromScoutApiPhoto && s.id) {
+    // Always load via our API by id (handles Postgres b64, S3 redirect → image blob). No reliance on photo_url shape.
+    if (s.id && (editSighting || reusePhotoFromSighting)) {
       api
         .get(`sightings/${s.id}/photo/`, { responseType: 'blob' })
         .then((res) => applyPhotoBlob(res.data))
-        .catch(() => {});
-    } else if (reusePhotoFromSighting && !editSighting && pu && /^https?:\/\//i.test(String(pu))) {
-      fetch(String(pu), { mode: 'cors', credentials: 'omit' })
-        .then((r) => {
-          if (!r.ok) throw new Error('photo fetch failed');
-          return r.blob();
-        })
-        .then((b) => applyPhotoBlob(b))
-        .catch(() => {});
+        .catch(() => {
+          const pu = s.photo_url;
+          if (reusePhotoFromSighting && !editSighting && pu && /^https?:\/\//i.test(String(pu))) {
+            fetch(String(pu), { mode: 'cors', credentials: 'omit' })
+              .then((r) => {
+                if (!r.ok) throw new Error('photo fetch failed');
+                return r.blob();
+              })
+              .then((b) => applyPhotoBlob(b))
+              .catch(() => {});
+          }
+        });
     }
   }, [editSighting?.id, reusePhotoFromSighting?.id]);
 
@@ -350,6 +348,9 @@ export default function Log() {
       photo_b64: photoB64 || null,
       data: payloadData,
     };
+    if (reusePhotoFromSighting && !editSighting) {
+      payload.reuse_photo_from_sighting_id = reusePhotoFromSighting.id;
+    }
     if (coords.lat != null && coords.lng != null) {
       payload.lat = Number(coords.lat);
       payload.lng = Number(coords.lng);
