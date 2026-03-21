@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import api from '../api/axios';
 import { useAuth } from '../context/AuthContext';
+import { formatGapListLocationSuffix, formatGapPanelLocationLine } from '../utils/geocode';
 
 const VENUE_TYPE_LABELS = {
   cafe: 'Cafe', pub: 'Pub', bar: 'Bar', deli: 'Deli', gym: 'Gym',
@@ -416,6 +417,10 @@ export default function Dashboard() {
     () => gapsActioned.filter((g) => g.status === 'skip').length,
     [gapsActioned],
   );
+  const gapsRevisitCount = useMemo(
+    () => gapsActioned.filter((g) => g.status === 'revisit').length,
+    [gapsActioned],
+  );
   const dashboardLatestSighting = useMemo(() => {
     if (!sightings.length) return null;
     return sightings.reduce((a, b) =>
@@ -428,6 +433,18 @@ export default function Dashboard() {
       return gapsActioned.filter((g) => g.status === 'pursue' && g.stage === 'declined');
     return gapsActioned.filter((g) => g.status === gapFilter);
   }, [gapsActioned, gapFilter]);
+
+  /** Counts for Actioned filter tabs (match each filter’s list) */
+  const gapActionedTabCounts = useMemo(
+    () => ({
+      all: gapsActioned.length,
+      pursue: gapsActioned.filter((g) => g.status === 'pursue').length,
+      revisit: gapsActioned.filter((g) => g.status === 'revisit').length,
+      skip: gapsActioned.filter((g) => g.status === 'skip').length,
+      declined: gapsActioned.filter((g) => g.status === 'pursue' && g.stage === 'declined').length,
+    }),
+    [gapsActioned],
+  );
 
   const getGapGroupKey = (g) => (g?.venue?.id != null ? `venue:${g.venue.id}` : `gap:${g.id}`);
 
@@ -971,22 +988,36 @@ export default function Dashboard() {
 
           {page === 'gaps' && (
             <div className="dashboard-comp-wrap">
-              <div className="dashboard-gap-stats">
-                <div className="dashboard-gap-stat stat-review">
-                  <div className="dashboard-gap-stat-num">{gapsUnreviewed.length}</div>
-                  <div className="dashboard-gap-stat-label">{gapsUnreviewed.length === 1 ? 'Needs' : 'Need'} review</div>
+              <div
+                className="dashboard-gap-summary-bar"
+                role="group"
+                aria-label="Gap pipeline"
+              >
+                <div className="dashboard-gap-summary-segment">
+                  <p className="dashboard-gap-summary-line">
+                    <span className="dashboard-gap-summary-num c-red">{gapsUnreviewed.length}</span>
+                    <span className="dashboard-gap-summary-copy">
+                      {gapsUnreviewed.length === 1 ? 'gap needs review' : 'gaps need review'}
+                    </span>
+                  </p>
                 </div>
-                <div className="dashboard-gap-stat stat-pursue">
-                  <div className="dashboard-gap-stat-num">{gapsActioned.filter((g) => g.status === 'pursue').length}</div>
-                  <div className="dashboard-gap-stat-label">Pursuing</div>
+                <div className="dashboard-gap-summary-segment">
+                  <p className="dashboard-gap-summary-line">
+                    <span className="dashboard-gap-summary-num c-pursue">{gapsPursuingCount}</span>
+                    <span className="dashboard-gap-summary-copy">pursuing</span>
+                  </p>
                 </div>
-                <div className="dashboard-gap-stat stat-revisit">
-                  <div className="dashboard-gap-stat-num">{gapsActioned.filter((g) => g.status === 'revisit').length}</div>
-                  <div className="dashboard-gap-stat-label">Revisit</div>
+                <div className="dashboard-gap-summary-segment">
+                  <p className="dashboard-gap-summary-line">
+                    <span className="dashboard-gap-summary-num c-revisit">{gapsRevisitCount}</span>
+                    <span className="dashboard-gap-summary-copy">revisit</span>
+                  </p>
                 </div>
-                <div className="dashboard-gap-stat stat-skip">
-                  <div className="dashboard-gap-stat-num">{gapsActioned.filter((g) => g.status === 'skip').length}</div>
-                  <div className="dashboard-gap-stat-label">Not pursuing</div>
+                <div className="dashboard-gap-summary-segment">
+                  <p className="dashboard-gap-summary-line">
+                    <span className="dashboard-gap-summary-num c-skip">{gapsNotPursuingCount}</span>
+                    <span className="dashboard-gap-summary-copy">not pursuing</span>
+                  </p>
                 </div>
               </div>
 
@@ -1015,8 +1046,7 @@ export default function Dashboard() {
                         const g = group.primary;
                         const venueType = g.venue?.venue_type ? VENUE_TYPE_LABELS[g.venue.venue_type] || g.venue.venue_type : '';
                         const venueCount = g.venue?.id ? gapVenueCounts[g.venue.id] || group.gaps.length : group.gaps.length;
-                        const hasNotesAny = group.gaps.some((x) => x.notes?.trim());
-                        const showTownInline = group.gaps.length === 1 && g.town?.name;
+                        const listLocSuffix = formatGapListLocationSuffix(g.town?.name);
                         return (
                           <tr
                             key={group.key}
@@ -1026,10 +1056,9 @@ export default function Dashboard() {
                             <td>
                               <div className="dashboard-gap-venue-cell">
                                 {g.venue?.name || '—'}
-                                {showTownInline && (
-                                  <span className="dashboard-comp-gap-venue-type-inline"> ({g.town.name})</span>
-                                )}
-                                <span className={`dashboard-gap-notes-dot${hasNotesAny ? ' has' : ''}`} title={hasNotesAny ? 'Has notes' : 'No notes'} />
+                                {listLocSuffix ? (
+                                  <span className="dashboard-comp-gap-venue-type-inline"> {listLocSuffix}</span>
+                                ) : null}
                                 {venueCount > 1 && <span className="dashboard-gap-venue-count">×{venueCount}</span>}
                               </div>
                             </td>
@@ -1060,12 +1089,10 @@ export default function Dashboard() {
                 )}
               </div>
 
-              {/* Actioned */}
-              <div className="dashboard-gap-section-head">
-                <div className="dashboard-gap-section-title">
-                  Actioned <span className="dashboard-gap-badge neutral">{gapsActioned.length}</span>
-                </div>
-                <div className="dashboard-gap-filter-chips">
+              {/* Actioned — minimal text tabs */}
+              <div className="dashboard-gap-actioned-head">
+                <div className="dashboard-gap-section-eyebrow">Actioned</div>
+                <div className="dashboard-gap-filter-tabs" role="tablist" aria-label="Filter actioned gaps">
                   {[
                     { key: 'all', label: 'All' },
                     { key: 'pursue', label: 'Pursue' },
@@ -1076,10 +1103,12 @@ export default function Dashboard() {
                     <button
                       key={f.key}
                       type="button"
-                      className={`dashboard-gap-filter-chip${gapFilter === f.key ? ` active-${f.key}` : ''}`}
+                      role="tab"
+                      aria-selected={gapFilter === f.key}
+                      className={`dashboard-gap-filter-tab${gapFilter === f.key ? ' active' : ''}`}
                       onClick={() => setGapFilter(f.key)}
                     >
-                      {f.label}
+                      {f.label} {gapActionedTabCounts[f.key]}
                     </button>
                   ))}
                 </div>
@@ -1109,7 +1138,7 @@ export default function Dashboard() {
                         const showStepper = g.status === 'pursue' && !isDeclined;
                         const progressStages = ['contacted', 'visit_booked', 'now_stocking'];
                         const activeIdx = g.stage ? progressStages.indexOf(g.stage) : -1;
-                        const showTownInline = group.gaps.length === 1 && g.town?.name;
+                        const listLocSuffix = formatGapListLocationSuffix(g.town?.name);
 
                         let badgeEl;
                         if (isDeclined) {
@@ -1139,9 +1168,9 @@ export default function Dashboard() {
                               <td>
                                 <div className="dashboard-gap-venue-cell" style={{ fontWeight: 400, opacity: 0.85 }}>
                                   {g.venue?.name || '—'}
-                                  {showTownInline && (
-                                    <span className="dashboard-comp-gap-venue-type-inline"> ({g.town.name})</span>
-                                  )}
+                                  {listLocSuffix ? (
+                                    <span className="dashboard-comp-gap-venue-type-inline"> {listLocSuffix}</span>
+                                  ) : null}
                                   {venueCount > 1 && <span className="dashboard-gap-venue-count">×{venueCount}</span>}
                                 </div>
                               </td>
@@ -1376,7 +1405,9 @@ export default function Dashboard() {
             <div className="dashboard-gap-panel-venue">{gapPanelPrimary?.venue?.name || '—'}</div>
             <div className="dashboard-gap-panel-meta">
               {gapPanelPrimary?.venue?.venue_type ? (VENUE_TYPE_LABELS[gapPanelPrimary.venue.venue_type] || gapPanelPrimary.venue.venue_type) : ''}
-              {gapsForPanel.length === 1 && gapPanelPrimary?.town?.name ? ` · ${gapPanelPrimary.town.name}` : ''}
+              {gapsForPanel.length === 1 && gapPanelPrimary?.town?.name
+                ? ` · ${formatGapPanelLocationLine(gapPanelPrimary.town.name)}`
+                : ''}
               {gapsForPanel.length > 1 ? ` · ${gapsForPanel.length} locations` : ''}
               {' · '}
               {gapPanelPrimary?.submitted_by?.name || gapPanelPrimary?.submitted_by?.email || '—'}
@@ -1395,7 +1426,9 @@ export default function Dashboard() {
               {gapsForPanel.map((loc) => (
                 <li key={loc.id} className="dashboard-gap-panel-location-row">
                   <div className="dashboard-gap-panel-loc-main">
-                    <span className="dashboard-gap-panel-loc-place">{loc.town?.name || '—'}</span>
+                    <span className="dashboard-gap-panel-loc-place">
+                      {formatGapPanelLocationLine(loc.town?.name)}
+                    </span>
                     <span className="dashboard-gap-panel-loc-when">{formatTime(loc.created_at)}</span>
                   </div>
                   {loc.notes?.trim() ? (

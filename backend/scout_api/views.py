@@ -387,7 +387,7 @@ def gap_list(request):
         return Response({'detail': 'No organisation'}, status=status.HTTP_400_BAD_REQUEST)
 
     if request.method == 'GET':
-        gaps = Gap.objects.filter(organisation=org).select_related('venue', 'submitted_by').order_by('-created_at')
+        gaps = Gap.objects.filter(organisation=org).select_related('venue', 'town', 'submitted_by').order_by('-created_at')
         return Response(GapSerializer(gaps, many=True).data)
 
     ser = GapCreateSerializer(data=request.data, context={'request': request})
