@@ -1,6 +1,7 @@
 import base64
 from django.conf import settings
 from django.core.mail import send_mail
+from django.db.models import BooleanField, Case, Q, Value, When
 from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework import status
@@ -284,6 +285,49 @@ def user_update_role(request, user_id):
     return Response(UserListSerializer(target).data)
 
 
+def sighting_list_queryset(org):
+    """
+    Sightings for list/bootstrap: select_related FKs, annotate whether a Postgres photo exists
+    without selecting photo_b64 (keeps payloads and memory small).
+    """
+    return (
+        Sighting.objects.filter(organisation=org)
+        .select_related('venue', 'brand', 'town', 'submitted_by')
+        .annotate(
+            has_local_photo=Case(
+                When(Q(photo_b64__isnull=True) | Q(photo_b64__exact=''), then=Value(False)),
+                default=Value(True),
+                output_field=BooleanField(),
+            )
+        )
+        .defer('photo_b64')
+        .order_by('-created_at')
+    )
+
+
+def gap_list_queryset(org):
+    return Gap.objects.filter(organisation=org).select_related('venue', 'town', 'submitted_by').order_by('-created_at')
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def dashboard_bootstrap(request):
+    """Single round-trip for Dashboard: sightings, brands, gaps (same shape as individual list endpoints)."""
+    org = request.user.organisation
+    if not org:
+        return Response({'detail': 'No organisation'}, status=status.HTTP_400_BAD_REQUEST)
+    brands = Brand.objects.filter(organisation=org).order_by('-is_own_brand', 'name')
+    gaps = gap_list_queryset(org)
+    ctx = {'request': request}
+    return Response(
+        {
+            'sightings': SightingSerializer(sighting_list_queryset(org), many=True, context=ctx).data,
+            'brands': BrandSerializer(brands, many=True).data,
+            'gaps': GapSerializer(gaps, many=True).data,
+        }
+    )
+
+
 @api_view(['GET', 'POST'])
 @permission_classes([IsAuthenticated])
 def sighting_list(request):
@@ -292,7 +336,7 @@ def sighting_list(request):
         return Response({'detail': 'No organisation'}, status=status.HTTP_400_BAD_REQUEST)
 
     if request.method == 'GET':
-        sightings = Sighting.objects.filter(organisation=org).select_related('venue', 'brand', 'town', 'submitted_by').order_by('-created_at')
+        sightings = sighting_list_queryset(org)
         return Response(SightingSerializer(sightings, many=True, context={'request': request}).data)
 
     ser = SightingCreateSerializer(data=request.data, context={'request': request})
@@ -387,7 +431,7 @@ def gap_list(request):
         return Response({'detail': 'No organisation'}, status=status.HTTP_400_BAD_REQUEST)
 
     if request.method == 'GET':
-        gaps = Gap.objects.filter(organisation=org).select_related('venue', 'town', 'submitted_by').order_by('-created_at')
+        gaps = gap_list_queryset(org)
         return Response(GapSerializer(gaps, many=True).data)
 
     ser = GapCreateSerializer(data=request.data, context={'request': request})

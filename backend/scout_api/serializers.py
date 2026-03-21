@@ -231,6 +231,14 @@ class SightingSerializer(serializers.ModelSerializer):
     def get_photo_url(self, obj):
         if obj.photo_url:
             return obj.photo_url
+        # List/bootstrap querysets annotate has_local_photo and defer photo_b64 (avoids loading huge blobs).
+        has_local = getattr(obj, 'has_local_photo', None)
+        if has_local is True:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(f'/api/sightings/{obj.id}/photo/')
+        if has_local is False:
+            return None
         if obj.photo_b64:
             request = self.context.get('request')
             if request:

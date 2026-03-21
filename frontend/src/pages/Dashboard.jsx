@@ -181,11 +181,30 @@ export default function Dashboard() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    Promise.all([
-      api.get('/sightings/').then((res) => setSightings(res.data || [])).catch(() => setSightings([])),
-      api.get('/config/brands/').then((res) => setBrands(res.data || [])).catch(() => setBrands([])),
-      api.get('/gaps/').then((res) => setGaps(res.data || [])).catch(() => setGaps([])),
-    ]).finally(() => setLoading(false));
+    const loadLegacy = () =>
+      Promise.all([
+        api.get('/sightings/').then((res) => setSightings(res.data || [])).catch(() => setSightings([])),
+        api.get('/config/brands/').then((res) => setBrands(res.data || [])).catch(() => setBrands([])),
+        api.get('/gaps/').then((res) => setGaps(res.data || [])).catch(() => setGaps([])),
+      ]);
+
+    api
+      .get('/dashboard/bootstrap/')
+      .then((res) => {
+        const d = res.data || {};
+        setSightings(Array.isArray(d.sightings) ? d.sightings : []);
+        setBrands(Array.isArray(d.brands) ? d.brands : []);
+        setGaps(Array.isArray(d.gaps) ? d.gaps : []);
+      })
+      .catch((err) => {
+        if (err.response?.status === 404) {
+          return loadLegacy();
+        }
+        setSightings([]);
+        setBrands([]);
+        setGaps([]);
+      })
+      .finally(() => setLoading(false));
   }, []);
 
   useEffect(() => {
