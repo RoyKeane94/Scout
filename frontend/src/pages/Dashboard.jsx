@@ -148,10 +148,9 @@ function DashboardOverviewStats({
         <div className="dashboard-gap-stat-label">Gaps to review</div>
         <div className="dashboard-gap-stat-sub">{gapSubLine}</div>
       </div>
-      <div className="dashboard-gap-stat stat-pursue has-sub">
+      <div className="dashboard-gap-stat stat-pursue">
         <div className="dashboard-gap-stat-num">{stockistVenueCount}</div>
         <div className="dashboard-gap-stat-label">Venues stocking {ownBrandName}</div>
-        <div className="dashboard-gap-stat-sub">Own-brand stockists</div>
       </div>
     </div>
   );
