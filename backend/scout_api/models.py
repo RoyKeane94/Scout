@@ -120,6 +120,8 @@ class Gap(models.Model):
     lng = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
     town = models.ForeignKey('Town', on_delete=models.SET_NULL, null=True, blank=True, related_name='gaps')
     notes = models.TextField(blank=True)
+    # True when created from the Competitors (contested venue) triage flow; False for "Log a gap".
+    from_contested_flow = models.BooleanField(default=False)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, null=True, blank=True)
     stage = models.CharField(max_length=20, choices=STAGE_CHOICES, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)

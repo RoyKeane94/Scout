@@ -77,13 +77,14 @@ function formatDateGroup(createdAt) {
   return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
 }
 
-/** Gaps for a contested venue row, newest first (for filtering need-review vs actioned). */
+/** Gaps for a contested venue row (Competitors triage only), newest first. */
 function sortContestedVenueGaps(entry, gapsList) {
+  const contested = gapsList.filter((g) => g.from_contested_flow === true);
   const vid = entry.venue?.id;
   const venueGaps =
     vid != null
-      ? gapsList.filter((g) => g.venue?.id === vid)
-      : gapsList.filter((g) => (g.venue?.name || '').trim() === (entry.venue?.name || '').trim());
+      ? contested.filter((g) => g.venue?.id === vid)
+      : contested.filter((g) => (g.venue?.name || '').trim() === (entry.venue?.name || '').trim());
   return [...venueGaps].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 }
 
@@ -175,6 +176,8 @@ export default function Dashboard() {
   const [gapPanelKey, setGapPanelKey] = useState(null);
   /** 'unreviewed' | 'actioned' — keeps panel rows aligned with the table that opened it */
   const [gapPanelContext, setGapPanelContext] = useState(null);
+  /** 'market' = Gaps tab (Log a gap); 'contested' = Competitors triage */
+  const [gapPanelSource, setGapPanelSource] = useState(null);
   /** Company page: venue row key for locations/notes slide-out panel */
   const [companyVenuePanelKey, setCompanyVenuePanelKey] = useState(null);
   const navigate = useNavigate();
@@ -213,6 +216,7 @@ export default function Dashboard() {
         else if (gapPanelKey) {
           setGapPanelKey(null);
           setGapPanelContext(null);
+          setGapPanelSource(null);
         }
         else if (companyVenuePanelKey != null) setCompanyVenuePanelKey(null);
         else closeDrawer();
@@ -481,23 +485,36 @@ export default function Dashboard() {
     });
   }, [competitorSightings, venuesWithOwnBrand]);
 
-  const gapsSorted = useMemo(
-    () => [...gaps].sort((a, b) => new Date(b.created_at) - new Date(a.created_at)),
-    [gaps]
+  /** Log-a-gap entries only (excludes Competitors triage gaps). */
+  const marketGaps = useMemo(() => gaps.filter((g) => !g.from_contested_flow), [gaps]);
+  const marketGapsSorted = useMemo(
+    () => [...marketGaps].sort((a, b) => new Date(b.created_at) - new Date(a.created_at)),
+    [marketGaps],
   );
   const [expandedGapId, setExpandedGapId] = useState(null);
 
-  const gapVenueCounts = useMemo(() => {
+  const marketGapVenueCounts = useMemo(() => {
     const counts = {};
-    gaps.forEach((g) => {
+    marketGaps.forEach((g) => {
       const vid = g.venue?.id;
       if (vid) counts[vid] = (counts[vid] || 0) + 1;
     });
     return counts;
+  }, [marketGaps]);
+
+  const contestedGapVenueCounts = useMemo(() => {
+    const counts = {};
+    gaps
+      .filter((g) => g.from_contested_flow === true)
+      .forEach((g) => {
+        const vid = g.venue?.id;
+        if (vid) counts[vid] = (counts[vid] || 0) + 1;
+      });
+    return counts;
   }, [gaps]);
 
-  const gapsUnreviewed = useMemo(() => gapsSorted.filter((g) => !g.status), [gapsSorted]);
-  const gapsActioned = useMemo(() => gapsSorted.filter((g) => g.status), [gapsSorted]);
+  const gapsUnreviewed = useMemo(() => marketGapsSorted.filter((g) => !g.status), [marketGapsSorted]);
+  const gapsActioned = useMemo(() => marketGapsSorted.filter((g) => g.status), [marketGapsSorted]);
   const gapsPursuingCount = useMemo(
     () => gapsActioned.filter((g) => g.status === 'pursue').length,
     [gapsActioned],
@@ -557,6 +574,7 @@ export default function Dashboard() {
 
   const gapsForPanel = useMemo(() => {
     if (!gapPanelKey || !gapPanelContext) return [];
+    const isContestedPanel = gapPanelSource === 'contested';
     let list;
     if (gapPanelKey.startsWith('venue:')) {
       const vid = Number(gapPanelKey.slice(6), 10);
@@ -565,22 +583,25 @@ export default function Dashboard() {
       const gid = Number(gapPanelKey.slice(4), 10);
       list = gaps.filter((g) => g.id === gid);
     }
+    list = list.filter((g) => (isContestedPanel ? g.from_contested_flow === true : !g.from_contested_flow));
     if (gapPanelContext === 'unreviewed') list = list.filter((g) => !g.status);
     if (gapPanelContext === 'actioned') {
       list = list.filter((g) => g.status);
-      if (gapFilter === 'declined') {
+      const filterKey = isContestedPanel ? contestedVenueFilter : gapFilter;
+      if (filterKey === 'declined') {
         list = list.filter((g) => g.status === 'pursue' && g.stage === 'declined');
-      } else if (gapFilter !== 'all') {
-        list = list.filter((g) => g.status === gapFilter);
+      } else if (filterKey !== 'all') {
+        list = list.filter((g) => g.status === filterKey);
       }
     }
     return [...list].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-  }, [gapPanelKey, gapPanelContext, gapFilter, gaps]);
+  }, [gapPanelKey, gapPanelContext, gapFilter, contestedVenueFilter, gaps, gapPanelSource]);
 
   useEffect(() => {
     if (gapPanelKey && gapPanelContext && gapsForPanel.length === 0) {
       setGapPanelKey(null);
       setGapPanelContext(null);
+      setGapPanelSource(null);
     }
   }, [gapPanelKey, gapPanelContext, gapsForPanel.length]);
 
@@ -630,9 +651,13 @@ export default function Dashboard() {
     const vid = entry.venue?.id;
     const body =
       vid != null
-        ? { venue_id: vid }
+        ? { venue_id: vid, from_contested_flow: true }
         : entry.venue?.name && entry.venue?.venue_type
-          ? { venue_name: entry.venue.name.trim(), venue_type: entry.venue.venue_type }
+          ? {
+              venue_name: entry.venue.name.trim(),
+              venue_type: entry.venue.venue_type,
+              from_contested_flow: true,
+            }
           : null;
     if (!body) throw new Error('no venue');
     const { data } = await api.post('/gaps/', body);
@@ -674,7 +699,9 @@ export default function Dashboard() {
         : '';
       const vid = entry.venue?.id;
       const venueCount =
-        vid != null ? gapVenueCounts[vid] || group?.gaps?.length || 0 : group?.gaps?.length || 0;
+        vid != null
+          ? contestedGapVenueCounts[vid] || group?.gaps?.length || 0
+          : group?.gaps?.length || 0;
       const listLocSuffix = formatGapListLocationSuffix(g?.town?.name || entry.townName);
       const hasStatus = Boolean(g?.status);
       const isDeclined = g?.status === 'pursue' && g?.stage === 'declined';
@@ -736,7 +763,7 @@ export default function Dashboard() {
             className={`${group && gapPanelKey === group.key ? 'gap-row-selected' : ''}${showStepper ? ' gap-row-has-stepper' : ''}`}
             onClick={() => {
               if (!group) return;
-              openGapPanelFromGroup(group, hasStatus ? 'actioned' : 'unreviewed');
+              openGapPanelFromGroup(group, hasStatus ? 'actioned' : 'unreviewed', 'contested');
             }}
             style={{ cursor: group ? 'pointer' : 'default' }}
           >
@@ -892,13 +919,15 @@ export default function Dashboard() {
     panelPursueGaps.forEach((g) => patchGap(g.id, { stage: newStage }));
   };
 
-  const openGapPanelFromGroup = (group, context) => {
+  const openGapPanelFromGroup = (group, context, source = 'market') => {
     setGapPanelKey(group.key);
     setGapPanelContext(context);
+    setGapPanelSource(source);
   };
   const closeGapPanel = () => {
     setGapPanelKey(null);
     setGapPanelContext(null);
+    setGapPanelSource(null);
   };
 
   const submitterCounts = useMemo(() => {
@@ -1016,7 +1045,7 @@ export default function Dashboard() {
               onClick={() => { setPage('gaps'); closeDrawer(); closeGapPanel(); setCompanyVenuePanelKey(null); }}
             >
               Gaps
-              {gaps.length > 0 && <span className="dashboard-tab-count">{gaps.length}</span>}
+              {marketGaps.length > 0 && <span className="dashboard-tab-count">{marketGaps.length}</span>}
             </button>
             <button
               type="button"
@@ -1445,13 +1474,13 @@ export default function Dashboard() {
                       {gapsUnreviewedGroups.map((group) => {
                         const g = group.primary;
                         const venueType = g.venue?.venue_type ? VENUE_TYPE_LABELS[g.venue.venue_type] || g.venue.venue_type : '';
-                        const venueCount = g.venue?.id ? gapVenueCounts[g.venue.id] || group.gaps.length : group.gaps.length;
+                        const venueCount = g.venue?.id ? marketGapVenueCounts[g.venue.id] || group.gaps.length : group.gaps.length;
                         const listLocSuffix = formatGapListLocationSuffix(g.town?.name);
                         return (
                           <tr
                             key={group.key}
                             className={gapPanelKey === group.key ? 'gap-row-selected' : ''}
-                            onClick={() => openGapPanelFromGroup(group, 'unreviewed')}
+                            onClick={() => openGapPanelFromGroup(group, 'unreviewed', 'market')}
                           >
                             <td>
                               <div className="dashboard-gap-venue-cell">
@@ -1533,7 +1562,7 @@ export default function Dashboard() {
                       {gapsFilteredGroups.map((group) => {
                         const g = group.primary;
                         const venueType = g.venue?.venue_type ? VENUE_TYPE_LABELS[g.venue.venue_type] || g.venue.venue_type : '';
-                        const venueCount = g.venue?.id ? gapVenueCounts[g.venue.id] || group.gaps.length : group.gaps.length;
+                        const venueCount = g.venue?.id ? marketGapVenueCounts[g.venue.id] || group.gaps.length : group.gaps.length;
                         const isDeclined = g.status === 'pursue' && g.stage === 'declined';
                         const showStepper = g.status === 'pursue' && !isDeclined;
                         const progressStages = ['contacted', 'visit_booked', 'now_stocking'];
@@ -1563,7 +1592,7 @@ export default function Dashboard() {
                           <React.Fragment key={group.key}>
                             <tr
                               className={`${gapPanelKey === group.key ? 'gap-row-selected' : ''}${showStepper ? ' gap-row-has-stepper' : ''}`}
-                              onClick={() => openGapPanelFromGroup(group, 'actioned')}
+                              onClick={() => openGapPanelFromGroup(group, 'actioned', 'market')}
                             >
                               <td>
                                 <div className="dashboard-gap-venue-cell" style={{ fontWeight: 400, opacity: 0.85 }}>

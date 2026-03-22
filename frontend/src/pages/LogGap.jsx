@@ -101,7 +101,7 @@ export default function LogGap() {
       return;
     }
     setSubmitting(true);
-    const payload = { lat, lng, notes: notes.trim() };
+    const payload = { lat, lng, notes: notes.trim(), from_contested_flow: false };
     if (venueName) payload.town_name = venueName;
     if (hasSelectedVenue) {
       payload.venue_id = parseInt(venueId, 10);

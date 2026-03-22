@@ -163,7 +163,19 @@ class GapSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Gap
-        fields = ['id', 'venue', 'town', 'lat', 'lng', 'notes', 'status', 'stage', 'created_at', 'submitted_by']
+        fields = [
+            'id',
+            'venue',
+            'town',
+            'lat',
+            'lng',
+            'notes',
+            'from_contested_flow',
+            'status',
+            'stage',
+            'created_at',
+            'submitted_by',
+        ]
 
 
 class GapCreateSerializer(serializers.Serializer):
@@ -174,6 +186,7 @@ class GapCreateSerializer(serializers.Serializer):
     venue_type = serializers.ChoiceField(choices=Venue.VENUE_TYPES, required=False)
     town_name = serializers.CharField(required=False, allow_blank=True, default='')
     notes = serializers.CharField(required=False, allow_blank=True, default='')
+    from_contested_flow = serializers.BooleanField(required=False, default=False)
 
     def validate(self, data):
         if data.get('venue_id') is not None:
@@ -213,6 +226,7 @@ class GapCreateSerializer(serializers.Serializer):
             lat=Decimal(str(lat)) if lat is not None else None,
             lng=Decimal(str(lng)) if lng is not None else None,
             notes=(validated_data.get('notes') or '').strip(),
+            from_contested_flow=bool(validated_data.get('from_contested_flow')),
         )
 
 

@@ -55,8 +55,8 @@ class FieldConfigAdmin(admin.ModelAdmin):
 
 @admin.register(Gap)
 class GapAdmin(admin.ModelAdmin):
-    list_display = ('id', 'organisation', 'venue', 'submitted_by', 'created_at')
-    list_filter = ('organisation', 'created_at')
+    list_display = ('id', 'organisation', 'venue', 'from_contested_flow', 'submitted_by', 'created_at')
+    list_filter = ('organisation', 'from_contested_flow', 'created_at')
     search_fields = ('venue__name',)
     raw_id_fields = ('venue', 'submitted_by')
     readonly_fields = ('created_at',)
