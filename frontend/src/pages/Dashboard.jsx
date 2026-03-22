@@ -62,12 +62,36 @@ function formatRetailPriceLabel(val) {
   return s || '—';
 }
 
+/**
+ * Global / brand-wide mean: average of parseable prices only (sum ÷ count of sightings that have a price).
+ * Used for dashboard KPI and competitor brand cards where “typical logged price” ignores rows with no price.
+ */
 function averageRetailPriceFromSightings(sightings) {
   const nums = sightings
     .map((s) => parseRetailPrice(s.data?.price))
     .filter((n) => n != null);
   if (!nums.length) return null;
   return nums.reduce((a, b) => a + b, 0) / nums.length;
+}
+
+/**
+ * Venue mean: sum(parseable retail prices) ÷ number of sightings in the list (this venue).
+ * Sightings without a parseable price contribute 0 to the sum but still count in the denominator.
+ * Returns null if there are no sightings, or if none have a parseable price.
+ */
+function averageRetailPriceForVenue(sightings) {
+  if (!sightings?.length) return null;
+  let sum = 0;
+  let anyPriced = false;
+  for (const s of sightings) {
+    const p = parseRetailPrice(s.data?.price);
+    if (p != null) {
+      sum += p;
+      anyPriced = true;
+    }
+  }
+  if (!anyPriced) return null;
+  return sum / sightings.length;
 }
 
 /** Own-brand sightings that contribute to average retail (parseable price). */
@@ -144,7 +168,7 @@ function DashboardOverviewStats({
         title={
           avgRetailSightingsCount === 0
             ? `Log a price on ${ownBrandName} sightings to see an average`
-            : `Mean retail from ${avgRetailSightingsCount} ${ownBrandName} sighting${avgRetailSightingsCount === 1 ? '' : 's'} with a price logged`
+            : `Mean of logged prices only (sum ÷ sightings that have a price; org-wide, not per venue). Based on ${avgRetailSightingsCount} sighting${avgRetailSightingsCount === 1 ? '' : 's'}.`
         }
       >
         <div className="dashboard-gap-stat-num dashboard-gap-stat-num-currency">
@@ -392,12 +416,36 @@ export default function Dashboard() {
     return formatGapPanelLocationLine(raw || '');
   };
 
-  /** Avg retail for the competitor brand of the opened sighting (drawer = “specific vendor” context) */
-  const drawerCompetitorAvgRetailPrice = useMemo(() => {
+  /** Avg retail for this competitor at this venue: sum(prices) ÷ sightings at venue (drawer). */
+  const drawerCompetitorVenueRetail = useMemo(() => {
     if (!selectedSighting?.brand?.id || selectedSighting.brand?.is_own_brand) return null;
-    const sameBrand = competitorSightings.filter((s) => s.brand?.id === selectedSighting.brand.id);
-    return averageRetailPriceFromSightings(sameBrand);
+    const vid = selectedSighting.venue?.id;
+    const sameBrandAtVenue = competitorSightings.filter((s) => {
+      if (s.brand?.id !== selectedSighting.brand.id) return false;
+      if (vid != null) return s.venue?.id === vid;
+      return (s.venue?.name || '').trim() === (selectedSighting.venue?.name || '').trim();
+    });
+    const avg = averageRetailPriceForVenue(sameBrandAtVenue);
+    if (avg == null) return null;
+    return {
+      avg,
+      sightingCount: sameBrandAtVenue.length,
+      pricedCount: countSightingsWithRetailPrice(sameBrandAtVenue),
+    };
   }, [selectedSighting, competitorSightings]);
+
+  /** Own-brand avg at this venue (drawer): sum(prices) ÷ sightings at venue. */
+  const drawerOwnBrandVenueAvgRetail = useMemo(() => {
+    if (!selectedSighting?.brand?.is_own_brand || !selectedSighting?.venue?.id) return null;
+    const atVenue = ownBrandSightings.filter((s) => s.venue?.id === selectedSighting.venue.id);
+    const avg = averageRetailPriceForVenue(atVenue);
+    if (avg == null) return null;
+    return {
+      avg,
+      sightingCount: atVenue.length,
+      pricedCount: countSightingsWithRetailPrice(atVenue),
+    };
+  }, [selectedSighting, ownBrandSightings]);
 
   const venuesWithOwnBrand = useMemo(() => {
     const ids = new Set();
@@ -1389,7 +1437,10 @@ export default function Dashboard() {
                       <div className="dashboard-comp-brand-meta">
                         <span className="dashboard-comp-sightings-count">{b.count} sightings</span>
                         {b.avgRetailPrice != null && (
-                          <span className="dashboard-comp-avg-price" title="Average of logged retail prices for this competitor">
+                          <span
+                            className="dashboard-comp-avg-price"
+                            title="Mean of logged prices only (sum ÷ sightings with a price), all venues for this competitor"
+                          >
                             Avg retail £{b.avgRetailPrice.toFixed(2)}
                           </span>
                         )}
@@ -2071,23 +2122,30 @@ export default function Dashboard() {
         <div className="dashboard-drawer-header">
           <div>
             <div className="dashboard-drawer-brand">{selectedSighting?.brand?.name || '—'}</div>
-            {selectedSighting?.brand?.is_own_brand && ownBrandAvgRetailPrice != null && (
+            {selectedSighting?.brand?.is_own_brand && drawerOwnBrandVenueAvgRetail != null && (
               <div
                 className="dashboard-drawer-brand-avg"
-                title={`Mean retail from ${ownBrandRetailPriceSightingsCount} ${ownBrandName} sighting${ownBrandRetailPriceSightingsCount === 1 ? '' : 's'} with a price logged`}
+                title={`Sum of logged prices ÷ ${drawerOwnBrandVenueAvgRetail.sightingCount} sighting${drawerOwnBrandVenueAvgRetail.sightingCount === 1 ? '' : 's'} at this venue (${drawerOwnBrandVenueAvgRetail.pricedCount} with a price)`}
               >
-                {ownBrandName} avg retail £{ownBrandAvgRetailPrice.toFixed(2)}
-                {ownBrandRetailPriceSightingsCount > 0 && (
-                  <span className="dashboard-drawer-brand-avg-meta">
-                    {' '}
-                    · {ownBrandRetailPriceSightingsCount} sighting{ownBrandRetailPriceSightingsCount === 1 ? '' : 's'}
-                  </span>
-                )}
+                {ownBrandName} avg retail £{drawerOwnBrandVenueAvgRetail.avg.toFixed(2)}
+                <span className="dashboard-drawer-brand-avg-meta">
+                  {' '}
+                  · {drawerOwnBrandVenueAvgRetail.sightingCount} sighting
+                  {drawerOwnBrandVenueAvgRetail.sightingCount === 1 ? '' : 's'} at venue
+                </span>
               </div>
             )}
-            {selectedSighting?.brand && !selectedSighting.brand.is_own_brand && drawerCompetitorAvgRetailPrice != null && (
-              <div className="dashboard-drawer-brand-avg" title="Average retail price across all logged sightings for this competitor">
-                Avg retail £{drawerCompetitorAvgRetailPrice.toFixed(2)}
+            {selectedSighting?.brand && !selectedSighting.brand.is_own_brand && drawerCompetitorVenueRetail != null && (
+              <div
+                className="dashboard-drawer-brand-avg"
+                title={`Sum of logged prices ÷ ${drawerCompetitorVenueRetail.sightingCount} sighting${drawerCompetitorVenueRetail.sightingCount === 1 ? '' : 's'} at this venue (${drawerCompetitorVenueRetail.pricedCount} with a price)`}
+              >
+                Avg retail £{drawerCompetitorVenueRetail.avg.toFixed(2)}
+                <span className="dashboard-drawer-brand-avg-meta">
+                  {' '}
+                  · {drawerCompetitorVenueRetail.sightingCount} sighting
+                  {drawerCompetitorVenueRetail.sightingCount === 1 ? '' : 's'} at venue
+                </span>
               </div>
             )}
             <div className="dashboard-drawer-venue">
