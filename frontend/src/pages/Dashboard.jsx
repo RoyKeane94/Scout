@@ -53,6 +53,15 @@ function parseRetailPrice(val) {
   return Number.isFinite(n) ? n : null;
 }
 
+/** Display string for sighting data.price in panels (parsed £ or raw text). */
+function formatRetailPriceLabel(val) {
+  if (val == null || val === '') return '—';
+  const n = parseRetailPrice(val);
+  if (n != null) return `£${n.toFixed(2)}`;
+  const s = String(val).trim();
+  return s || '—';
+}
+
 function averageRetailPriceFromSightings(sightings) {
   const nums = sightings
     .map((s) => parseRetailPrice(s.data?.price))
@@ -357,6 +366,32 @@ export default function Dashboard() {
 
   const competitorSightings = useMemo(() => sightings.filter((s) => !s.brand?.is_own_brand), [sightings]);
 
+  /**
+   * Latest town string per venue from any sighting (competitor or own). Gaps created from the Competitors
+   * flow often have no Gap.town — same fallback as the contested table uses via entry.townName.
+   */
+  const latestTownNameByVenueId = useMemo(() => {
+    const best = {};
+    sightings.forEach((s) => {
+      const vid = s.venue?.id;
+      const name = s.town?.name;
+      if (!vid || !name) return;
+      const t = new Date(s.created_at).getTime();
+      if (best[vid] == null || t > best[vid].t) best[vid] = { name, t };
+    });
+    const out = {};
+    Object.keys(best).forEach((k) => {
+      out[Number(k)] = best[k].name;
+    });
+    return out;
+  }, [sightings]);
+
+  const gapPanelLocationLine = (loc) => {
+    const raw =
+      loc?.town?.name || (loc?.venue?.id != null ? latestTownNameByVenueId[loc.venue.id] : null);
+    return formatGapPanelLocationLine(raw || '');
+  };
+
   /** Avg retail for the competitor brand of the opened sighting (drawer = “specific vendor” context) */
   const drawerCompetitorAvgRetailPrice = useMemo(() => {
     if (!selectedSighting?.brand?.id || selectedSighting.brand?.is_own_brand) return null;
@@ -611,6 +646,39 @@ export default function Dashboard() {
     [gapsForPanel],
   );
   const stageRefGap = panelPursueGaps[0] || gapPanelPrimary;
+
+  /** Competitor brands at this venue with latest logged retail (from sightings). */
+  const gapPanelCompetitors = useMemo(() => {
+    if (!gapPanelPrimary?.venue) return [];
+    const vid = gapPanelPrimary.venue.id;
+    const vname = (gapPanelPrimary.venue.name || '').trim();
+    const atVenue = competitorSightings.filter((s) => {
+      if (vid != null) return s.venue?.id === vid;
+      return Boolean(vname) && (s.venue?.name || '').trim() === vname;
+    });
+    const byBrand = new Map();
+    atVenue.forEach((s) => {
+      const bid = s.brand?.id;
+      if (!bid) return;
+      const t = new Date(s.created_at).getTime();
+      const prev = byBrand.get(bid);
+      if (!prev || t > prev.t) {
+        byBrand.set(bid, {
+          brandId: bid,
+          brandName: s.brand?.name || '—',
+          priceRaw: s.data?.price,
+          t,
+        });
+      }
+    });
+    return Array.from(byBrand.values())
+      .sort((a, b) => a.brandName.localeCompare(b.brandName))
+      .map(({ brandId, brandName, priceRaw }) => ({
+        brandId,
+        brandName,
+        priceLabel: formatRetailPriceLabel(priceRaw),
+      }));
+  }, [gapPanelPrimary, competitorSightings]);
 
   const updateGapLocal = (id, fields) => {
     setGaps((prev) => prev.map((g) => (g.id === id ? { ...g, ...fields } : g)));
@@ -1835,8 +1903,10 @@ export default function Dashboard() {
             <div className="dashboard-gap-panel-venue">{gapPanelPrimary?.venue?.name || '—'}</div>
             <div className="dashboard-gap-panel-meta">
               {gapPanelPrimary?.venue?.venue_type ? (VENUE_TYPE_LABELS[gapPanelPrimary.venue.venue_type] || gapPanelPrimary.venue.venue_type) : ''}
-              {gapsForPanel.length === 1 && gapPanelPrimary?.town?.name
-                ? ` · ${formatGapPanelLocationLine(gapPanelPrimary.town.name)}`
+              {gapsForPanel.length === 1 &&
+              (gapPanelPrimary?.town?.name ||
+                (gapPanelPrimary?.venue?.id != null && latestTownNameByVenueId[gapPanelPrimary.venue.id]))
+                ? ` · ${gapPanelLocationLine(gapPanelPrimary)}`
                 : ''}
               {gapsForPanel.length > 1 ? ` · ${gapsForPanel.length} locations` : ''}
               {' · '}
@@ -1857,7 +1927,7 @@ export default function Dashboard() {
                 <li key={loc.id} className="dashboard-gap-panel-location-row">
                   <div className="dashboard-gap-panel-loc-main">
                     <span className="dashboard-gap-panel-loc-place">
-                      {formatGapPanelLocationLine(loc.town?.name)}
+                      {gapPanelLocationLine(loc)}
                     </span>
                     <span className="dashboard-gap-panel-loc-when">{formatTime(loc.created_at)}</span>
                   </div>
@@ -1868,6 +1938,19 @@ export default function Dashboard() {
               ))}
             </ul>
           </div>
+          {gapPanelCompetitors.length > 0 && (
+            <div className="dashboard-gap-panel-section">
+              <div className="dashboard-gap-panel-label">Competitors</div>
+              <ul className="dashboard-gap-panel-competitors" aria-label="Competitors at this venue">
+                {gapPanelCompetitors.map((row) => (
+                  <li key={row.brandId} className="dashboard-gap-panel-competitor-row">
+                    <span className="dashboard-gap-panel-comp-name">{row.brandName}</span>
+                    <span className="dashboard-gap-panel-comp-price">{row.priceLabel}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
           <div className="dashboard-gap-panel-section">
             <div className="dashboard-gap-panel-label">Decision</div>
             <div className="dashboard-gap-panel-triage">

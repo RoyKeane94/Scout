@@ -2559,6 +2559,39 @@
   white-space: pre-wrap;
 }
 
+.dashboard-gap-panel-competitors {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.dashboard-gap-panel-competitor-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 13.5px;
+}
+
+.dashboard-gap-panel-competitor-row:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.dashboard-gap-panel-comp-name {
+  font-weight: 600;
+  color: var(--navy);
+}
+
+.dashboard-gap-panel-comp-price {
+  font-family: 'DM Mono', monospace;
+  font-size: 12px;
+  color: var(--grey-1);
+  flex-shrink: 0;
+}
+
 .dashboard-gap-panel-notes {
   font-size: 13.5px;
   line-height: 1.7;
